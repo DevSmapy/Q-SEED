@@ -42,6 +42,17 @@
 └── README.md
 ```
 
+## 📋 Roadmap
+
+프로젝트는 총 4단계의 마일스톤을 통해 진행됩니다.
+
+1. **Phase 1: Data Infrastructure** - 금융 데이터 수집 파이프라인 및 저장 구조 확립
+2. **Phase 2: Factor Research** - 팩터 유효성 검증 및 라이브러리 구축
+3. **Phase 3: Engine Development** - 백테스팅 엔진 코어 및 성과 지표 모듈 개발
+4. **Phase 4: Strategy & Action** - 전략 최적화 및 실전 스크리닝 자동화
+
+---
+
 ## 🚀 Getting Started
 
 `uv`를 사용하여 환경을 구축합니다.
