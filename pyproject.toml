@@ -20,7 +20,7 @@ dependencies = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "PL"]
@@ -30,7 +30,7 @@ ignore = ["D100", "D104"] # 필요에 따라 무시할 규칙 추가
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 strict = true
 ignore_missing_imports = true
 
