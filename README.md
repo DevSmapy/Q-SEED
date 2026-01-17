@@ -21,7 +21,8 @@
 
 ## 🛠 Tech Stack
 
-- **Language:** Python 3.10+
+- **Language:** Python 3.14
+- **Distributed Processing:** [Apache Spark (PySpark)](https://spark.apache.org/docs/latest/api/python/index.html)
 - **Package Manager:** [uv](https://github.com/astral-sh/uv)
 - **Analysis:** Pandas, NumPy, Scipy
 - **Visualization:** Matplotlib, Plotly
