@@ -29,13 +29,6 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      # 로컬과 동일한 규칙으로 서버에서 검사
-      #- name: Run Ruff Check
-      #  run: uv run ruff check .
-
-      #- name: Run Ruff Format Check
-      #  run: uv run ruff format --check .
-
       # 별도의 ruff 실행 대신 pre-commit action 사용
       - name: Run pre-commit
-        uses: uv run pre-commit run --all-files
+        run: uv run pre-commit run --all-files
