@@ -12,14 +12,17 @@ dependencies = [
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
     "pandas>=2.3.3",
+    "pandas-stubs~=2.3.3",
     "plotly>=6.5.1",
     "pyspark>=4.1.1",
     "requests>=2.32.5",
     "scipy>=1.17.0",
+    "tqdm>=4.67.1",
 ]
 
 [tool.ruff]
 line-length = 100
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "PL"]
@@ -29,7 +32,7 @@ ignore = ["D100", "D104"] # 필요에 따라 무시할 규칙 추가
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.13"
 strict = true
 ignore_missing_imports = true
 
