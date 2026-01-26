@@ -9,6 +9,7 @@ dependencies = [
     "delta-spark>=4.0.1",
     "ipykernel>=7.1.0",
     "jupyterlab>=4.5.2",
+    "keyring>=25.7.0",
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
     "pandas>=2.3.3",
@@ -17,6 +18,7 @@ dependencies = [
     "pyspark>=4.1.1",
     "requests>=2.32.5",
     "scipy>=1.17.0",
+    "tiingo>=0.16.1",
     "tqdm>=4.67.1",
 ]
 
