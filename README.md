@@ -56,6 +56,10 @@
 
 ## 🚀 Getting Started
 
+로컬 환경 혹은 Docker를 사용하여 개발 환경을 구축할 수 있습니다.
+
+### Local (uv)
+
 `uv`를 사용하여 환경을 구축합니다.
 
 ```bash
@@ -65,3 +69,30 @@ uv sync
 # pre-commit 훅 설치
 uv run pre-commit install
 ```
+
+### Docker
+
+Docker를 사용하면 Python, dbt, Google Cloud SDK가 포함된 일관된 환경을 바로 사용할 수 있습니다.
+
+1. **이미지 빌드 및 컨테이너 실행**
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+2. **컨테이너 접속**
+
+   ```bash
+   docker compose exec q-seed bash
+   ```
+
+3. **GCP 인증 (처음 한 번)**
+
+   ```bash
+   gcloud auth login
+   ```
+
+4. **dbt 실행 확인**
+   ```bash
+   uv run dbt --version
+   ```

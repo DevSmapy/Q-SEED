@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "beautifulsoup4>=4.14.3",
+    "dbt-bigquery>=1.11.1",
+    "dbt-core>=1.11.7",
     "delta-spark>=4.0.1",
     "ipykernel>=7.1.0",
     "jupyterlab>=4.5.2",
