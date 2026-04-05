@@ -1,5 +1,5 @@
 # Dockerfile for Q-SEED Development Environment
-FROM python:3.14-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 # 1. System dependencies and Google Cloud SDK
 ENV DEBIAN_FRONTEND=noninteractive
