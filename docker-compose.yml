@@ -1,0 +1,14 @@
+services:
+  q-seed:
+    build: .
+    volumes:
+      - .:/app
+      # Google Cloud SDK credentials persistence
+      - gcloud-config:/root/.config/gcloud
+    environment:
+      - UV_LINK_MODE=copy
+    stdin_open: true
+    tty: true
+
+volumes:
+  gcloud-config:
