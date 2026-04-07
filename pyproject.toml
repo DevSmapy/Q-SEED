@@ -21,6 +21,7 @@ dependencies = [
     "tiingo>=0.16.1",
     "tqdm>=4.67.1",
     "yfinance>=0.2.55",
+    "finance-datareader>=0.9.99",
 ]
 
 [tool.ruff]
