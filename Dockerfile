@@ -1,32 +1,26 @@
-# Dockerfile for Q-SEED Development Environment
-FROM python:3.13-slim-bookworm
+# 베이스 이미지로 Python 3.12-slim 사용 (uv와 호환성 고려)
+FROM python:3.12-slim
 
-# 1. System dependencies and Google Cloud SDK
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg \
-    git \
-    build-essential \
-    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
-    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
-    && apt-get update && apt-get install -y google-cloud-cli \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# 2. Install uv (Package Manager)
+# 필요한 패키지 설치 및 uv 설치
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# 3. Set working directory
+# 작업 디렉토리 설정
 WORKDIR /app
 
-# 4. Install Python dependencies including dbt
-# dbt-core and a specific adapter (e.g., dbt-bigquery if using GCS/BigQuery)
+# 의존성 파일 복사 (uv.lock 및 pyproject.toml)
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
 
-# 5. Application setup
+# 의존성 설치 (가상환경 없이 시스템 경로에 설치하도록 설정)
+RUN uv sync --frozen --no-dev --no-editable
+
+# 프로젝트 코드 복사
 COPY . .
-RUN uv sync --frozen
 
-# 6. Default command
-CMD ["/bin/bash"]
+# 결과물을 저장할 폴더 생성
+RUN mkdir -p kor_ticker
+
+# Python 실행 경로 설정 (uv가 생성한 가상환경 사용)
+ENV PATH="/app/.venv/bin:$PATH"
+
+# 실행 명령 설정
+CMD ["python", "research/main.py"]
