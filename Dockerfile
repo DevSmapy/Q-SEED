@@ -1,29 +1,43 @@
-# 베이스 이미지로 Python 3.14-slim 사용 (uv와 호환성 고려)
+# Base image with Python 3.14-slim (compatible with uv)
 FROM python:3.14-slim
 
-# 필요한 패키지 설치 및 uv 설치
+# Define build arguments and environment variables
+ARG USERNAME=appuser
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Set labels for better container management
+LABEL maintainer="Q-SEED Team"
+LABEL description="Q-SEED Quantitative Investment Research Platform"
+LABEL python.version="3.14"
+
+# Install uv package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# 작업 디렉토리 설정
+# Create non-root user and setup working directory
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && mkdir -p /app/kor_ticker \
+    && chown -R $USERNAME:$USERNAME /app
+
+# Set working directory
 WORKDIR /app
 
-# 의존성 파일 복사 (uv.lock 및 pyproject.toml)
-COPY pyproject.toml uv.lock ./
+# Copy dependency files (leverage Docker layer caching)
+COPY --chown=$USERNAME:$USERNAME pyproject.toml uv.lock ./
 
-# 의존성 설치 (가상환경 없이 시스템 경로에 설치하도록 설정)
+# Install dependencies (system-wide without virtual environment editing)
 RUN uv sync --frozen --no-dev --no-editable
 
-# 프로젝트 코드 복사
-COPY . .
+# Copy project code
+COPY --chown=$USERNAME:$USERNAME . .
 
-# 결과물을 저장할 폴더 생성
-RUN mkdir -p kor_ticker
-RUN adduser --disabled-password --gecos "" appuser \
-    && chown -R appuser:appuser /app
+# Switch to non-root user
+USER $USERNAME
 
-USER appuser
-# Python 실행 경로 설정 (uv가 생성한 가상환경 사용)
+# Set Python execution path (use virtual environment created by uv)
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 
-# 실행 명령 설정
+# Set default command
 CMD ["python", "research/main.py"]
