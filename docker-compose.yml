@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - .:/app
+      - q-seed-venv:/app/.venv
       # Google Cloud SDK credentials persistence
       - gcloud-config:/home/appuser/.config/gcloud
     environment:
@@ -15,4 +16,5 @@ services:
     tty: true
 
 volumes:
+  q-seed-venv:
   gcloud-config:
