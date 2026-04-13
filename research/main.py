@@ -1,9 +1,16 @@
 import os
+from collections.abc import Generator
 
 import FinanceDataReader
 import yfinance as yf
 from google.cloud import storage
-from tqdm import tqdm
+
+MAX_STOCKS = 100
+
+
+def divide_list(lst: list[str], n: int) -> Generator[list[str]]:
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
 
 
 def upload_to_gcs(bucket_name: str, source_file_name: str, destination_blob_name: str) -> None:
@@ -16,7 +23,9 @@ def upload_to_gcs(bucket_name: str, source_file_name: str, destination_blob_name
 
 
 if __name__ == "__main__":
-    bucket_name = os.getenv("GCS_BUCKET_NAME")
+    # get environment variable
+    """bucket_name = os.getenv("GCS_BUCKET_NAME")"""
+
     os.makedirs("./kor_ticker", exist_ok=True)
 
     # make stock list of KRX
@@ -25,19 +34,36 @@ if __name__ == "__main__":
     ticker_list_path = "./kor_ticker/krx_list.csv"
     krx_list.to_csv(ticker_list_path, index=False, header=False)
 
-    if bucket_name:
-        upload_to_gcs(bucket_name, ticker_list_path, "kor_ticker/krx_list.csv")
+    # upload stock list to GCS
+    """if bucket_name:
+        upload_to_gcs(bucket_name, ticker_list_path, "kor_ticker/krx_list.csv")"""
 
     # make stock list of KRX
     krx_list = krx_list.tolist()
 
+    div_krx_list = divide_list(krx_list, 100)
+
     # get stock info
-    for stock in tqdm(krx_list):
-        stock_ticker = yf.Ticker(stock)
-        hist = stock_ticker.history(period="1y")
+    no_data_list = []
+    i = 0
+    for stocks in div_krx_list:
+        stocks_str = " ".join(stocks)
+        stocks_tickers = yf.Tickers(stocks_str)
+        for stock in stocks:
+            hist = stocks_tickers.tickers[stock].history(period="1y")
+            if hist.empty:
+                no_data_list.append(stock)
+                continue
+            else:
+                hist.to_csv(f"./kor_ticker/{stock}.csv", header=True, sep=",")
+                i += 1
 
-        local_path = f"./kor_ticker/{stock}.csv"
-        hist.to_csv(local_path, header=True, sep=",")
+        # upload stock info to GCS
+        """if bucket_name:
+            upload_to_gcs(bucket_name, local_path, f"kor_ticker/{stock}.csv")"""
 
-        if bucket_name:
-            upload_to_gcs(bucket_name, local_path, f"kor_ticker/{stock}.csv")
+        if i == MAX_STOCKS:
+            break
+
+    with open("no_data_list.txt", "w") as f:
+        f.write("\n".join(no_data_list))
