@@ -1,5 +1,5 @@
 # 베이스 이미지로 Python 3.12-slim 사용 (uv와 호환성 고려)
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # 필요한 패키지 설치 및 uv 설치
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -18,7 +18,10 @@ COPY . .
 
 # 결과물을 저장할 폴더 생성
 RUN mkdir -p kor_ticker
+RUN adduser --disabled-password --gecos "" appuser \
+    && chown -R appuser:appuser /app
 
+USER appuser
 # Python 실행 경로 설정 (uv가 생성한 가상환경 사용)
 ENV PATH="/app/.venv/bin:$PATH"
 
