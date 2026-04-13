@@ -1,4 +1,4 @@
-# 베이스 이미지로 Python 3.12-slim 사용 (uv와 호환성 고려)
+# 베이스 이미지로 Python 3.14-slim 사용 (uv와 호환성 고려)
 FROM python:3.14-slim
 
 # 필요한 패키지 설치 및 uv 설치

@@ -4,9 +4,10 @@ services:
     volumes:
       - .:/app
       # Google Cloud SDK credentials persistence
-      - gcloud-config:/root/.config/gcloud
+      - gcloud-config:/home/appuser/.config/gcloud
     environment:
       - UV_LINK_MODE=copy
+      - CLOUDSDK_CONFIG=/home/appuser/.config/gcloud
     stdin_open: true
     tty: true
 
