@@ -1,32 +1,43 @@
-# Dockerfile for Q-SEED Development Environment
-FROM python:3.13-slim-bookworm
+# Base image with Python 3.14-slim (compatible with uv)
+FROM python:3.14-slim
 
-# 1. System dependencies and Google Cloud SDK
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg \
-    git \
-    build-essential \
-    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
-    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
-    && apt-get update && apt-get install -y google-cloud-cli \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Define build arguments and environment variables
+ARG USERNAME=appuser
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
 
-# 2. Install uv (Package Manager)
+# Set labels for better container management
+LABEL maintainer="Q-SEED Team"
+LABEL description="Q-SEED Quantitative Investment Research Platform"
+LABEL python.version="3.14"
+
+# Install uv package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# 3. Set working directory
+# Create non-root user and setup working directory
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && mkdir -p /app/kor_ticker \
+    && chown -R $USERNAME:$USERNAME /app
+
+# Set working directory
 WORKDIR /app
 
-# 4. Install Python dependencies including dbt
-# dbt-core and a specific adapter (e.g., dbt-bigquery if using GCS/BigQuery)
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
+# Copy dependency files (leverage Docker layer caching)
+COPY --chown=$USERNAME:$USERNAME pyproject.toml uv.lock ./
 
-# 5. Application setup
-COPY . .
-RUN uv sync --frozen
+# Install dependencies (system-wide without virtual environment editing)
+RUN uv sync --frozen --no-dev --no-editable
 
-# 6. Default command
-CMD ["/bin/bash"]
+# Copy project code
+COPY --chown=$USERNAME:$USERNAME . .
+
+# Switch to non-root user
+USER $USERNAME
+
+# Set Python execution path (use virtual environment created by uv)
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+# Set default command
+CMD ["python", "research/main.py"]

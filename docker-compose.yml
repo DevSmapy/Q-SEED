@@ -1,14 +1,20 @@
 services:
   q-seed:
-    build: .
+    container_name: q-seed-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
       - .:/app
+      - q-seed-venv:/app/.venv
       # Google Cloud SDK credentials persistence
-      - gcloud-config:/root/.config/gcloud
+      - gcloud-config:/home/appuser/.config/gcloud
     environment:
       - UV_LINK_MODE=copy
+      - CLOUDSDK_CONFIG=/home/appuser/.config/gcloud
     stdin_open: true
     tty: true
 
 volumes:
+  q-seed-venv:
   gcloud-config:
