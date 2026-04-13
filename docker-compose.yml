@@ -1,6 +1,9 @@
 services:
   q-seed:
-    build: .
+    container_name: q-seed-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
       - .:/app
       # Google Cloud SDK credentials persistence
