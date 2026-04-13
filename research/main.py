@@ -1,5 +1,5 @@
 import os
-from collections.abc import Generator
+from collections.abc import Iterator
 
 import FinanceDataReader
 import yfinance as yf
@@ -8,7 +8,7 @@ from google.cloud import storage
 MAX_STOCKS = 100
 
 
-def divide_list(lst: list[str], n: int) -> Generator[list[str]]:
+def divide_list(lst: list[str], n: int) -> Iterator[list[str]]:
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
 
@@ -50,6 +50,8 @@ if __name__ == "__main__":
         stocks_str = " ".join(stocks)
         stocks_tickers = yf.Tickers(stocks_str)
         for stock in stocks:
+            if i >= MAX_STOCKS:
+                break
             hist = stocks_tickers.tickers[stock].history(period="1y")
             if hist.empty:
                 no_data_list.append(stock)
@@ -62,7 +64,7 @@ if __name__ == "__main__":
         """if bucket_name:
             upload_to_gcs(bucket_name, local_path, f"kor_ticker/{stock}.csv")"""
 
-        if i == MAX_STOCKS:
+        if i >= MAX_STOCKS:
             break
 
     with open("no_data_list.txt", "w") as f:
