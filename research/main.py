@@ -52,7 +52,13 @@ if __name__ == "__main__":
         for stock in stocks:
             if i >= MAX_STOCKS:
                 break
-            hist = stocks_tickers.tickers[stock].history(period="1y")
+
+            try:
+                hist = stocks_tickers.tickers[stock].history(period="1y")
+            except Exception:
+                no_data_list.append(stock)
+                continue
+
             if hist.empty:
                 no_data_list.append(stock)
                 continue
