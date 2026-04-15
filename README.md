@@ -52,9 +52,6 @@
 ├── docker-compose.yml # Docker 환경 설정
 ├── Dockerfile         # Docker 이미지 빌드 파일
 ├── pyproject.toml     # 프로젝트 의존성 및 환경 설정 (uv)
-│   ├── factors/       # 팩터 계산 및 유효성 검증 모듈
-│   ├── backtester/    # 성과 분석 및 리포팅 엔진
-│   └── utils/         # 공통 유틸리티 (로깅, 설정)
 └── README.md
 ```
 
