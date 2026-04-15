@@ -9,6 +9,7 @@ dependencies = [
     "dbt-bigquery>=1.11.1",
     "dbt-core>=1.11.7",
     "delta-spark>=4.0.1",
+    "duckdb>=1.5.2",
     "finance-datareader>=0.9.110",
     "ipykernel>=7.1.0",
     "jupyterlab>=4.5.2",
