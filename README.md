@@ -30,13 +30,14 @@
 
 ## 🛠 Tech Stack
 
-- **Language:** Python 3.14
+- **Language:** Python 3.13
 - **Distributed Processing:** [Apache Spark (PySpark)](https://spark.apache.org/docs/latest/api/python/index.html) - 대용량 금융 시계열 데이터 처리 최적화
-- **Storage:** Delta Lake / Parquet - 효율적인 데이터 조회 및 스키마 관리, Google Cloud Storage 연동
+- **Data Transformation:** dbt (dbt-core, dbt-bigquery) - 데이터 모델링 및 파이프라인 관리
+- **Storage:** Delta Lake / DuckDB / BigQuery - 효율적인 데이터 조회 및 스키마 관리
 - **Package Manager:** [uv](https://github.com/astral-sh/uv)
-- **Analysis:** Pandas, NumPy, Scipy
+- **Analysis:** Pandas, NumPy, Scipy, Statsmodels
 - **Visualization:** Plotly (Interactive Charts), Matplotlib
-- **Data Source:** FinanceDataReader, KRX Data, BeautifulSoup4
+- **Data Source:** FinanceDataReader, yfinance, Tiingo, BeautifulSoup4
 
 ---
 
@@ -94,7 +95,7 @@ uv run pre-commit install
 
 ### Docker
 
-Docker를 사용하면 Python 및 Google Cloud SDK가 포함된 일관된 환경을 바로 사용할 수 있습니다.
+Docker를 사용하면 Python, dbt, Google Cloud SDK가 포함된 일관된 환경을 바로 사용할 수 있습니다.
 
 1. **이미지 빌드 및 컨테이너 실행**
 
@@ -108,8 +109,13 @@ Docker를 사용하면 Python 및 Google Cloud SDK가 포함된 일관된 환경
    docker compose exec q-seed bash
    ```
 
-3. **GCP 인증 (Google Cloud Storage 사용 시, 처음 한 번)**
+3. **GCP 인증 (BigQuery 사용 시, 처음 한 번)**
 
    ```bash
    gcloud auth login
+   ```
+
+4. **dbt 실행 확인**
+   ```bash
+   uv run dbt --version
    ```
