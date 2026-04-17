@@ -1,11 +1,13 @@
 import os
 from collections.abc import Iterator
 
+import duckdb
 import FinanceDataReader
 import yfinance as yf
 from google.cloud import storage
 
-MAX_STOCKS = 100
+CHUNK_SIZE = 100
+MAX_STOCKS = 500
 
 
 def divide_list(lst: list[str], n: int) -> Iterator[list[str]]:
@@ -41,37 +43,63 @@ if __name__ == "__main__":
     # make stock list of KRX
     krx_list = krx_list.tolist()
 
-    div_krx_list = divide_list(krx_list, 100)
+    div_krx_list = divide_list(krx_list, CHUNK_SIZE)
 
-    # get stock info
-    no_data_list = []
-    i = 0
+    # connection stock db
+    conn = duckdb.connect("my_stocks.db")
+
+    # create table
+    conn.execute("""
+    CREATE OR REPLACE TABLE raw_stocks
+    (Date Timestamp, Ticker TEXT, Open REAL, High REAL, Low REAL, Close REAL, Volume BIGINT)
+    """)
+
+    # get all KRX stocks information
+    load_tickers = []  # success stocks names
+    total = 0  # total stocks
+    n_success = 0  # success stocks count
+    success_tickers = []  # success stocks names
+
     for stocks in div_krx_list:
-        stocks_str = " ".join(stocks)
-        stocks_tickers = yf.Tickers(stocks_str)
-        for stock in stocks:
-            if i >= MAX_STOCKS:
-                break
+        # add stocks names to list
+        load_tickers.extend(stocks)
 
-            try:
-                hist = stocks_tickers.tickers[stock].history(period="1y")
-            except Exception:
-                no_data_list.append(stock)
-                continue
+        # get stocks information(multiple stocks with multiple threads)
+        df = yf.download(stocks, period="1y", threads=True, group_by="Ticker", auto_adjust=True)
 
-            if hist.empty:
-                no_data_list.append(stock)
-                continue
-            else:
-                hist.to_csv(f"./kor_ticker/{stock}.csv", header=True, sep=",")
-                i += 1
+        # add column 'Ticker'
+        df_flat = df.stack(level=0, future_stack=True).reset_index()
 
-        # upload stock info to GCS
-        """if bucket_name:
-            upload_to_gcs(bucket_name, local_path, f"kor_ticker/{stock}.csv")"""
+        # drop unnecessary columns
+        if "Adj Close" in df_flat.columns:
+            df_flat = df_flat.drop(columns=["Adj Close"])
 
-        if i >= MAX_STOCKS:
+        df_flat = df_flat.dropna(subset=["Close"])  # drop NaN values for identifying no data stocks
+
+        conn.execute(
+            """INSERT INTO raw_stocks SELECT * FROM df_flat"""
+        )  # insert stocks information to db
+
+        success_tickers.extend(df_flat["Ticker"].tolist())
+        n_success += df_flat["Ticker"].nunique()  # count success stocks
+
+        total += CHUNK_SIZE  # count total stocks
+
+        print(f"Processed {n_success}/{total} stocks")
+
+        # save stocks information to parquet
+        df_flat.to_parquet(f"./kor_ticker/stocks_{total}.parquet", engine="pyarrow")
+
+        if total >= MAX_STOCKS:
             break
 
+    conn.close()  # close db connection
+
+    # get no data stocks
+    no_data_list = list(set(load_tickers) - set(success_tickers))
+
+    print(len(no_data_list), "stocks have no data")
+
+    # save no data stocks to file
     with open("no_data_list.txt", "w") as f:
         f.write("\n".join(no_data_list))
