@@ -1,4 +1,5 @@
 import os
+import time
 from collections.abc import Iterator
 
 import duckdb
@@ -62,10 +63,8 @@ if __name__ == "__main__":
     """)
 
     # get all KRX stocks information
-    load_tickers = []  # success stocks names
-    total = 0  # total stocks
-    n_success = 0  # success stocks count
-    success_tickers = []  # success stocks names
+    load_tickers = []  # loading stocks names
+    success_tickers = set()  # success stocks names (set으로 변경)
 
     for stocks in div_krx_list:
         # add stocks names to list
@@ -73,7 +72,7 @@ if __name__ == "__main__":
 
         # get stocks information(multiple stocks with multiple threads)
         df = yf.download(
-            stocks, period="1y", threads=True, group_by="Ticker", auto_adjust=True, actions=True
+            stocks, period="max", threads=True, group_by="Ticker", auto_adjust=True, actions=True
         )
 
         # add column 'Ticker'
@@ -103,25 +102,33 @@ if __name__ == "__main__":
             """INSERT INTO raw_stocks SELECT * FROM df_flat"""
         )  # insert stocks information to db
 
-        success_tickers.extend(df_flat["Ticker"].tolist())
-        n_success += df_flat["Ticker"].nunique()  # count success stocks
+        # 고유한 티커만 추가 (unique한 값만)
+        success_tickers.update(df_flat["Ticker"].unique())
 
-        total += CHUNK_SIZE  # count total stocks
+        # 실제 로드 시도한 개수와 성공 개수 계산
+        n_loaded = len(load_tickers)  # 실제 로드 시도한 총 개수
+        n_success = len(success_tickers)
+        n_failed = n_loaded - n_success
 
-        print(f"Processed {n_success}/{total} stocks")
+        print(f"Processed: {n_success} success / {n_failed} failed / {n_loaded} total attempted")
 
         # save stocks information to parquet
-        df_flat.to_parquet(f"./kor_ticker/stocks_{total}.parquet", engine="pyarrow")
+        df_flat.to_parquet(f"./kor_ticker/stocks_{n_loaded}.parquet", engine="pyarrow")
+        time.sleep(5)
 
-        if total >= MAX_STOCKS:
+        if n_loaded >= MAX_STOCKS:
             break
 
     conn.close()  # close db connection
 
     # get no data stocks
-    no_data_list = list(set(load_tickers) - set(success_tickers))
+    no_data_list = list(set(load_tickers) - success_tickers)
 
-    print(len(no_data_list), "stocks have no data")
+    print("\n=== Final Summary ===")
+    print(f"Total attempted: {len(load_tickers)}")
+    print(f"Success: {len(success_tickers)}")
+    print(f"Failed: {len(no_data_list)}")
+    print(f"Success rate: {len(success_tickers) / len(load_tickers) * 100:.2f}%")
 
     # save no data stocks to file
     with open("no_data_list.txt", "w") as f:
