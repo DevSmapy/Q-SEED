@@ -7,7 +7,7 @@ import yfinance as yf
 from google.cloud import storage
 
 CHUNK_SIZE = 100
-MAX_STOCKS = 500
+MAX_STOCKS = 3000
 
 
 def divide_list(lst: list[str], n: int) -> Iterator[list[str]]:
@@ -42,6 +42,12 @@ if __name__ == "__main__":
 
     # make stock list of KRX
     krx_list = krx_list.tolist()
+    if len(krx_list) < MAX_STOCKS:
+        print("KRX stocks count is less than MAX_STOCKS")
+        print(f"MAX_STOCKS: {MAX_STOCKS}")
+        print("So set MAX_STOCKS to KRX stocks count")
+        print(f"KRX stocks count: {len(krx_list)}")
+        MAX_STOCKS = len(krx_list)
 
     div_krx_list = divide_list(krx_list, CHUNK_SIZE)
 
@@ -51,7 +57,8 @@ if __name__ == "__main__":
     # create table
     conn.execute("""
     CREATE OR REPLACE TABLE raw_stocks
-    (Date Timestamp, Ticker TEXT, Open REAL, High REAL, Low REAL, Close REAL, Volume BIGINT)
+    (Date Timestamp, Ticker TEXT, Open REAL, High REAL, Low REAL, Close REAL,
+    Volume BIGINT, Dividends REAL, Split REAL)
     """)
 
     # get all KRX stocks information
@@ -65,7 +72,9 @@ if __name__ == "__main__":
         load_tickers.extend(stocks)
 
         # get stocks information(multiple stocks with multiple threads)
-        df = yf.download(stocks, period="1y", threads=True, group_by="Ticker", auto_adjust=True)
+        df = yf.download(
+            stocks, period="1y", threads=True, group_by="Ticker", auto_adjust=True, actions=True
+        )
 
         # add column 'Ticker'
         df_flat = df.stack(level=0, future_stack=True).reset_index()
@@ -73,6 +82,20 @@ if __name__ == "__main__":
         # drop unnecessary columns
         if "Adj Close" in df_flat.columns:
             df_flat = df_flat.drop(columns=["Adj Close"])
+        if "Capital Gains" in df_flat.columns:
+            df_flat = df_flat.drop(columns=["Capital Gains"])
+
+        # rename columns
+        if "Stock Splits" in df_flat.columns:
+            df_flat.rename(columns={"Stock Splits": "Split"}, inplace=True)
+
+        # add column 'Dividends'
+        if "Dividends" not in df_flat.columns:
+            df_flat["Dividends"] = 0.0
+
+        # add column 'Split'
+        if "Split" not in df_flat.columns:
+            df_flat["Split"] = 1.0  # because there is no stock split
 
         df_flat = df_flat.dropna(subset=["Close"])  # drop NaN values for identifying no data stocks
 
