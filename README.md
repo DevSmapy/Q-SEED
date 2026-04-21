@@ -44,15 +44,76 @@
 ## 📂 Directory Structure
 
 ```text
-/Q-SEED
-├── /kor_ticker        # 한국 주식 티커 및 데이터 수집/처리 모듈
-├── /research          # 실습, 데이터 탐색 및 아이디어 스케치 (Jupyter Notebooks)
-│   ├── exploration.ipynb # 데이터 탐색 노트북
-│   └── spark-warehouse/  # 로컬 Spark 데이터 임시 저장소
-├── docker-compose.yml # Docker 환경 설정
-├── Dockerfile         # Docker 이미지 빌드 파일
-├── pyproject.toml     # 프로젝트 의존성 및 환경 설정 (uv)
+Q-SEED/
+├── src/
+│   └── qseed/                    # 메인 패키지
+│       ├── __init__.py
+│       ├── cli.py                # CLI 엔트리포인트
+│       ├── config.py             # 설정 관리 (StockConfig)
+│       │
+│       ├── providers/            # 데이터 소스 제공자
+│       │   ├── __init__.py
+│       │   └── krx.py            # KRX 주식 목록 제공
+│       │
+│       ├── fetchers/             # 데이터 수집기
+│       │   ├── __init__.py
+│       │   └── yfinance.py       # yfinance 기반 주가 수집
+│       │
+│       ├── repositories/         # 저장소 (DB, 파일)
+│       │   ├── __init__.py
+│       │   ├── duckdb.py         # DuckDB 저장소
+│       │   └── parquet.py        # Parquet 내보내기
+│       │
+│       ├── uploaders/            # 외부 스토리지 업로더
+│       │   ├── __init__.py
+│       │   └── gcs.py            # Google Cloud Storage 업로더
+│       │
+│       ├── pipelines/            # 파이프라인 조율
+│       │   ├── __init__.py
+│       │   └── stock_pipeline.py # 주식 데이터 수집 파이프라인
+│       │
+│       └── utils/                # 유틸리티
+│           ├── __init__.py
+│           └── helpers.py        # 헬퍼 함수
+│
+├── tests/                        # 테스트 코드
+│   ├── __init__.py
+│   ├── test_providers/
+│   ├── test_fetchers/
+│   ├── test_repositories/
+│   └── test_pipelines/
+│
+├── research/                     # 연구/실험용 (Jupyter Notebooks)
+│   ├── exploration.ipynb         # 데이터 탐색 노트북
+│   ├── spark-warehouse/          # 로컬 Spark 데이터 임시 저장소
+│   └── db_test.py
+│
+├── data/                         # 데이터 출력 디렉토리
+│   ├── kor_ticker/               # 한국 주식 티커 데이터
+│   └── stocks.db                 # DuckDB 파일
+│
+├── docker-compose.yml            # Docker 환경 설정
+├── Dockerfile                    # Docker 이미지 빌드 파일
+├── pyproject.toml                # 프로젝트 의존성 및 환경 설정 (uv)
 └── README.md
+```
+
+```text
+┌─────────────────┐
+│     cli.py      │  ← 사용자 진입점 (qseed 명령)
+└────────┬────────┘
+         │
+         ▼
+┌──────────────────┐
+│ StockDataPipeline│  ← 전체 흐름 조율
+└────────┬─────────┘
+         │
+    ┌────┴───────┬────────────┬───────────┐
+    ▼            ▼            ▼           ▼
+┌────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐
+│Provider│ │Fetcher   │ │Repository│ │Uploader │
+│ (KRX)  │ │(yfinance)│ │(DuckDB)  │ │ (GCS)   │
+└────────┘ └──────────┘ └──────────┘ └─────────┘
 ```
 
 ## 📋 Roadmap & KPIs
