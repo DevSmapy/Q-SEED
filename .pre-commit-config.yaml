@@ -22,7 +22,12 @@ repos:
     rev: v1.14.1
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests, types-PyYAML, pandas-stubs] # 필요한 타입 힌트 라이브러리
+        additional_dependencies:
+          - types-requests
+          - types-PyYAML
+          - pandas-stubs
+          - pydantic>=2.0
+          - pydantic-settings>=2.0
 
   # 4. Prettier: 마크다운 및 JSON 포맷팅
   - repo: https://github.com/pre-commit/mirrors-prettier
