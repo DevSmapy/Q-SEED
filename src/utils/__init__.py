@@ -1,6 +1,6 @@
 """Q-SEED 유틸리티 패키지."""
 
-from utils.helpers import (
+from src.utils.helpers import (
     calculate_success_rate,
     chunked,
     format_progress,
