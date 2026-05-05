@@ -13,11 +13,17 @@ def build_parser() -> argparse.ArgumentParser:
         prog="qseed",
         description="Q-SEED 주식 데이터 수집 도구",
     )
-
     parser.add_argument(
         "--run-stock-pipeline",
         action="store_true",
         help="주식 데이터 수집 파이프라인 실행",
+    )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="full",
+        choices=["full", "incremental"],
+        help="실행 모드 (full 또는 incremental)",
     )
     parser.add_argument(
         "--max-stocks",
@@ -66,7 +72,8 @@ def main() -> int:
     if args.sleep_interval is not None:
         pipeline.config.stock.sleep_interval = args.sleep_interval
 
-    pipeline.run()
+    pipeline.run(mode=args.mode)
+
     return 0
 
 

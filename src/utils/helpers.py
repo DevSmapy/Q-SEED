@@ -1,6 +1,7 @@
 """Q-SEED 유틸리티 함수 모듈."""
 
 from collections.abc import Iterator
+from pathlib import Path
 from typing import TypeVar
 
 T = TypeVar("T")
@@ -118,5 +119,8 @@ def save_list_to_file(items: list[str], filepath: str) -> None:
         >>> save_list_to_file(['a', 'b', 'c'], filepath)
         >>> os.remove(filepath)
     """
-    with open(filepath, "w", encoding="utf-8") as f:
+    file_path = Path(filepath)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(items))
