@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -17,6 +18,12 @@ class ParquetRepository:
             base_dir: Parquet 파일을 저장할 기본 디렉토리
         """
         self.base_dir = Path(base_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+
+    def reset(self) -> None:
+        """Parquet 저장 디렉토리를 초기화."""
+        if self.base_dir.exists():
+            shutil.rmtree(self.base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def save(self, dataframe: pd.DataFrame, filename: str) -> Path:
@@ -51,4 +58,6 @@ class ParquetRepository:
 
     def list_files(self) -> list[Path]:
         """저장된 Parquet 파일 목록 조회."""
+        if not self.base_dir.exists():
+            return []
         return sorted(self.base_dir.glob("*.parquet"))

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import duckdb
 import pandas as pd
@@ -22,6 +22,15 @@ class DuckDBRepository:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: duckdb.DuckDBPyConnection | None = None
 
+    def __enter__(self) -> DuckDBRepository:
+        """컨텍스트 매니저 진입."""
+        _ = self.conn
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """컨텍스트 매니저 종료."""
+        self.close()
+
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
         """활성 DuckDB 연결 객체."""
@@ -29,8 +38,13 @@ class DuckDBRepository:
             self._conn = duckdb.connect(str(self.db_path))
         return self._conn
 
+    def ensure_database_file(self) -> None:
+        """DuckDB 파일 생성과 연결을 보장."""
+        _ = self.conn
+
     def initialize(self) -> None:
         """기본 테이블 생성."""
+        self.ensure_database_file()
         self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS raw_stocks (
@@ -47,6 +61,12 @@ class DuckDBRepository:
             """
         )
 
+    def reset_raw_stocks_table(self) -> None:
+        """raw_stocks 테이블을 초기화하고 다시 생성."""
+        self.ensure_database_file()
+        self.conn.execute("DROP TABLE IF EXISTS raw_stocks")
+        self.initialize()
+
     def insert_dataframe(self, dataframe: pd.DataFrame) -> None:
         """DataFrame을 raw_stocks 테이블에 적재.
 
@@ -56,14 +76,18 @@ class DuckDBRepository:
         if dataframe.empty:
             return
 
-        self.conn.register("df_to_insert", dataframe)
+        conn = self.conn
+        conn.register("df_to_insert", dataframe)
         try:
-            self.conn.execute("INSERT INTO raw_stocks SELECT * FROM df_to_insert")
+            conn.execute("INSERT INTO raw_stocks SELECT * FROM df_to_insert")
+            # 즉시 커밋 효과를 위해 체크포인트 실행
+            conn.execute("CHECKPOINT")
         finally:
-            self.conn.unregister("df_to_insert")
+            conn.unregister("df_to_insert")
 
     def fetch_all(self) -> pd.DataFrame:
         """저장된 전체 데이터 조회."""
+        self.ensure_database_file()
         return cast(pd.DataFrame, self.conn.execute("SELECT * FROM raw_stocks").df())
 
     def close(self) -> None:
