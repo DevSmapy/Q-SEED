@@ -33,6 +33,9 @@ dependencies = [
     "yfinance>=1.2.0",
 ]
 
+[project.scripts]
+qseed = "src.qseed.cli:main"
+
 [tool.ruff]
 line-length = 100
 target-version = "py313"
