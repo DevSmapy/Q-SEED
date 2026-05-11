@@ -81,11 +81,14 @@ class YFinanceFetcher:
         self.actions = actions
         self.threads = threads
 
-    def fetch(self, tickers: list[str]) -> FetchResult:
+    def fetch(
+        self, tickers: list[str], ticker_to_market: dict[str, str] | None = None
+    ) -> FetchResult:
         """여러 종목의 주가 데이터 수집.
 
         Args:
             tickers: 수집할 티커 목록
+            ticker_to_market: 티커별 시장 정보 매핑 (예: {"AAPL": "NASDAQ"})
 
         Returns:
             FetchResult: 수집 결과 (DataFrame, 성공/실패 티커)
@@ -118,6 +121,12 @@ class YFinanceFetcher:
         # DataFrame 변환 및 정제
         df_flat = self._flatten_dataframe(raw_df)
         df_cleaned = self._clean_dataframe(df_flat)
+
+        # Market 칼럼 추가
+        if ticker_to_market:
+            df_cleaned["Market"] = df_cleaned["Ticker"].map(ticker_to_market)
+        elif "Market" not in df_cleaned.columns:
+            df_cleaned["Market"] = "Unknown"
 
         # 성공한 티커 추출
         success_tickers: list[str] = df_cleaned["Ticker"].unique().tolist()

@@ -8,14 +8,14 @@ from pathlib import Path
 
 if typing.TYPE_CHECKING:
     from src.fetchers.yfinance import YFinanceFetcher
-    from src.providers.krx import KRXProvider
+    from src.providers.stock_provider import StockProvider
     from src.qseed.config import AppConfig
     from src.repositories.duckdb import DuckDBRepository
     from src.repositories.parquet import ParquetRepository
     from src.uploaders.gcs import GCSUploader
 
 from src.fetchers.yfinance import YFinanceFetcher
-from src.providers.krx import KRXProvider
+from src.providers.stock_provider import StockProvider
 from src.qseed.config import AppConfig, get_config
 from src.repositories.duckdb import DuckDBRepository
 from src.repositories.parquet import ParquetRepository
@@ -35,7 +35,7 @@ class StockPipelineDependencies:
     """파이프라인 의존성 묶음."""
 
     config: AppConfig | None = None
-    provider: KRXProvider | None = None
+    provider: StockProvider | None = None
     fetcher: YFinanceFetcher | None = None
     repository: DuckDBRepository | None = None
     parquet_repository: ParquetRepository | None = None
@@ -69,7 +69,7 @@ class StockDataPipeline:
         deps = deps or StockPipelineDependencies()
 
         self.config = deps.config or get_config()
-        self.provider = deps.provider or KRXProvider()
+        self.provider = deps.provider or StockProvider()
         self.fetcher = deps.fetcher or YFinanceFetcher(period=self.config.stock.download_period)
         self.repository = deps.repository or DuckDBRepository(db_path=self.config.stock.db_path)
         self.parquet_repository = deps.parquet_repository or ParquetRepository(
@@ -110,11 +110,16 @@ class StockDataPipeline:
         self.config.stock.ensure_directories()
 
         # 1. 티커 목록 획득 및 저장
-        tickers = self.provider.get_tickers(max_count=self.config.stock.max_stocks)
+        # 사용자가 설정한 max_stocks를 시장당 최대 종목 수로 사용
+        max_per_market = self.config.stock.max_stocks
+        tickers_df = self.provider.get_all_tickers(max_per_market=max_per_market)
         self.provider.save_tickers_to_csv(
             self.config.stock.ticker_list_path,
-            max_count=len(tickers),
+            tickers_df,
         )
+
+        tickers = tickers_df["Ticker"].tolist()
+        ticker_to_market = dict(zip(tickers_df["Ticker"], tickers_df["Market"]))
 
         parquet_files: list[Path] = []
         success_tickers: set[str] = set()
@@ -133,8 +138,8 @@ class StockDataPipeline:
             ):
                 attempted_tickers.extend(ticker_chunk)
 
-                # 데이터 페칭
-                fetch_result = self.fetcher.fetch(ticker_chunk)
+                # 데이터 페칭 (시장 정보 전달)
+                fetch_result = self.fetcher.fetch(ticker_chunk, ticker_to_market=ticker_to_market)
 
                 # DB 저장
                 if not fetch_result.dataframe.empty:

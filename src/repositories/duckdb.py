@@ -50,6 +50,7 @@ class DuckDBRepository:
             CREATE TABLE IF NOT EXISTS raw_stocks (
                 Date TIMESTAMP,
                 Ticker TEXT,
+                Market TEXT,
                 Open DOUBLE,
                 High DOUBLE,
                 Low DOUBLE,
@@ -79,7 +80,7 @@ class DuckDBRepository:
         conn = self.conn
         conn.register("df_to_insert", dataframe)
         try:
-            conn.execute("INSERT INTO raw_stocks SELECT * FROM df_to_insert")
+            conn.execute("INSERT INTO raw_stocks BY NAME SELECT * FROM df_to_insert")
             # 즉시 커밋 효과를 위해 체크포인트 실행
             conn.execute("CHECKPOINT")
         finally:

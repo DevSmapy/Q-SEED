@@ -19,6 +19,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="주식 데이터 수집 파이프라인 실행",
     )
     parser.add_argument(
+        "--build-db",
+        action="store_true",
+        help="전체 데이터베이스 구축 (모든 시장, 최대 기간)",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         default="full",
@@ -29,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-stocks",
         type=int,
         default=None,
-        help="최대 수집 종목 수",
+        help="시장별 최대 수집 종목 수 (입력값이 시스템 최대치를 초과하면 시스템 최대치로 제한됨)",
     )
     parser.add_argument(
         "--chunk-size",
@@ -57,11 +62,19 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    if not args.run_stock_pipeline:
+    if not args.run_stock_pipeline and not args.build_db:
         parser.print_help()
         return 0
 
     pipeline = StockDataPipeline()
+
+    # --build-db 옵션 처리: 모든 종목, 최대 기간 설정
+    if args.build_db:
+        pipeline.config.stock.max_stocks = 1000000  # 사실상 제한 없음
+        pipeline.fetcher.period = "max"
+        print("모드: 전체 데이터베이스 구축 (--build-db)")
+        print("- 모든 지원 시장의 모든 티커 수집 시도")
+        print("- 데이터 수집 기간: max")
 
     if args.max_stocks is not None:
         pipeline.config.stock.max_stocks = args.max_stocks
