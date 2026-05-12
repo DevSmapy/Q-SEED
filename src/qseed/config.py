@@ -20,7 +20,7 @@ class StockConfig(BaseSettings):
 
     # 수집 설정
     chunk_size: int = Field(default=100, ge=1, description="한 번에 처리할 종목 수")
-    max_stocks: int = Field(default=3000, ge=1, description="최대 수집 종목 수")
+    max_stocks: int = Field(default=1000, ge=1, description="시장별 최대 수집 종목 수")
     download_period: str = Field(default="max", description="yfinance 다운로드 기간")
     sleep_interval: float = Field(default=5.0, ge=0, description="청크 간 대기 시간 (초)")
 
