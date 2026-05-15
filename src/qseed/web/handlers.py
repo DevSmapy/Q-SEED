@@ -26,31 +26,25 @@ class ResearchRequestHandler(SimpleHTTPRequestHandler):
         """GET 요청 처리."""
         parsed = urlparse(self.path)
 
+        # 각 API 핸들러 호출을 위한 래퍼 메서드 생성
+        # (lambda 대신 명시적인 호출이 가능하도록 구성)
+
         if parsed.path == "/api/health":
             self._handle_health()
-            return
-
-        if parsed.path == "/api/tables":
+        elif parsed.path == "/api/tables":
             self._handle_tables()
-            return
-
-        if parsed.path == "/api/schema":
+        elif parsed.path == "/api/schema":
             self._handle_schema()
-            return
-
-        if parsed.path == "/api/summary":
+        elif parsed.path == "/api/summary":
             self._handle_summary()
-            return
-
-        if parsed.path == "/api/search":
+        elif parsed.path == "/api/search":
             self._handle_search(parsed.query)
-            return
-
-        if parsed.path == "/api/ticker":
+        elif parsed.path == "/api/ticker":
             self._handle_ticker(parsed.query)
-            return
-
-        self._handle_static_file()
+        elif parsed.path == "/api/market":
+            self._handle_market(parsed.query)
+        else:
+            self._handle_static_file()
 
     def _handle_static_file(self) -> None:
         """정적 파일 요청 처리."""
@@ -159,6 +153,38 @@ class ResearchRequestHandler(SimpleHTTPRequestHandler):
                 {
                     "ok": True,
                     "ticker": ticker,
+                    "limit": limit,
+                    "count": len(rows),
+                    "rows": rows,
+                },
+            )
+        except Exception as error:
+            self._send_error_json(error)
+
+    def _handle_market(self, query_string: str) -> None:
+        """Market 기준 조회 API."""
+        params = parse_qs(query_string)
+
+        market = params.get("market", [""])[0].strip()
+        limit = self._parse_limit(params.get("limit", [str(self.config.default_limit)])[0])
+
+        if not market:
+            self._send_json(
+                HTTPStatus.BAD_REQUEST,
+                {
+                    "ok": False,
+                    "error": "market 파라미터가 필요합니다.",
+                },
+            )
+            return
+
+        try:
+            rows = self.repository.search_by_market(market=market, limit=limit)
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "market": market,
                     "limit": limit,
                     "count": len(rows),
                     "rows": rows,
