@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DuckDB Auto-Connect Search</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            padding: 40px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        h2 { margin-top: 0; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .stat-label { font-size: 0.85em; color: var(--text-muted); margin-bottom: 4px; }
+        .stat-value { font-size: 1.2em; font-weight: 600; color: var(--primary-color); }
+
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .search-options { display: flex; gap: 10px; width: 100%; margin-bottom: 10px; }
+        select {
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        input {
+            flex-grow: 1;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            min-width: 200px;
+        }
+        input:focus { outline: none; border-color: var(--primary-color); }
+        button {
+            padding: 12px 24px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+        th {
+            background: #f8fafc;
+            padding: 12px 16px;
+            border-bottom: 2px solid var(--border-color);
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        td { padding: 10px 16px; border-bottom: 1px solid var(--border-color); }
+        tr:hover { background-color: #f8fafc; }
+        tr:last-child td { border-bottom: none; }
+
+        .loader {
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-ok { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .status-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .status-loading { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🔍 Q-SEED 데이터 탐색기</h2>
+
+        <div id="status" class="loader status-loading">DB 연결 확인 중...</div>
+
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-label">총 데이터 건수</div>
+                <div class="stat-value" id="statRows">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">종목 수</div>
+                <div class="stat-value" id="statTickers">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">데이터 기간</div>
+                <div class="stat-value" id="statRange" style="font-size: 0.9em;">-</div>
+            </div>
+        </div>
+
+        <div class="search-box">
+            <div class="search-options">
+                <select id="searchMode">
+                    <option value="auto">자동 탐지</option>
+                    <option value="ticker">티커 검색 (Ticker)</option>
+                    <option value="market">시장 검색 (Market)</option>
+                    <option value="keyword">전체 키워드 검색</option>
+                </select>
+                <select id="searchLimit">
+                    <option value="50">50건</option>
+                    <option value="100">100건</option>
+                    <option value="200">200건</option>
+                    <option value="500">500건</option>
+                </select>
+            </div>
+            <input type="text" id="searchInput" placeholder="검색어 입력..." disabled>
+            <button id="searchBtn" disabled>검색</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="resultTable">
+                <thead id="tableHeader"></thead>
+                <tbody id="resultBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+    async function init() {
+        const status = document.getElementById('status');
+        const statsGrid = document.getElementById('statsGrid');
+
+        try {
+            const healthResponse = await fetch('/api/health');
+
+            if (!healthResponse.ok) {
+                throw new Error(`API 연결 실패: HTTP ${healthResponse.status}`);
+            }
+
+            const health = await healthResponse.json();
+
+            if (!health.ok) {
+                throw new Error(health.error ?? 'API 상태 확인 실패');
+            }
+
+            const summaryResponse = await fetch('/api/summary');
+            const summaryData = summaryResponse.ok ? await summaryResponse.json() : null;
+
+            if (summaryData && summaryData.ok) {
+                const s = summaryData.summary;
+                document.getElementById('statRows').innerText = s.row_count.toLocaleString();
+                document.getElementById('statTickers').innerText = (s.ticker_count || '-').toLocaleString();
+
+                if (s.min_date && s.max_date) {
+                    const min = s.min_date.split(' ')[0];
+                    const max = s.max_date.split(' ')[0];
+                    document.getElementById('statRange').innerText = `${min} ~ ${max}`;
+                }
+
+                statsGrid.style.display = 'grid';
+
+                status.className = 'loader status-ok';
+                status.innerText = `✅ 연결됨: ${health.table} (${s.row_count.toLocaleString()}행)`;
+            } else {
+                status.className = 'loader status-ok';
+                status.innerText = `✅ 연결됨: ${health.table}`;
+            }
+
+            document.getElementById('searchInput').disabled = false;
+            document.getElementById('searchBtn').disabled = false;
+        } catch (e) {
+            status.className = 'loader status-error';
+            status.innerText = `❌ 에러: ${e.message}`;
+            console.error(e);
+        }
+    }
+
+    async function search() {
+        const status = document.getElementById('status');
+        const keyword = document.getElementById('searchInput').value.trim();
+        const mode = document.getElementById('searchMode').value;
+        const limit = document.getElementById('searchLimit').value;
+
+        try {
+            status.className = 'loader status-loading';
+            status.innerText = '검색 중...';
+
+            let endpoint;
+            if (mode === 'ticker') {
+                endpoint = `/api/ticker?ticker=${encodeURIComponent(keyword)}&limit=${limit}`;
+            } else if (mode === 'market') {
+                endpoint = `/api/market?market=${encodeURIComponent(keyword)}&limit=${limit}`;
+            } else if (mode === 'keyword') {
+                endpoint = `/api/search?q=${encodeURIComponent(keyword)}&limit=${limit}`;
+            } else {
+                // auto 모드
+                endpoint = isTickerKeyword(keyword)
+                    ? `/api/ticker?ticker=${encodeURIComponent(keyword)}&limit=${limit}`
+                    : `/api/search?q=${encodeURIComponent(keyword)}&limit=${limit}`;
+            }
+
+            const response = await fetch(endpoint);
+
+            if (!response.ok) {
+                throw new Error(`검색 API 호출 실패: HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.ok) {
+                throw new Error(data.error ?? '검색 실패');
+            }
+
+            renderResults(data.rows);
+            status.className = 'loader status-ok';
+            status.innerText = `✅ 검색 완료: ${data.count.toLocaleString()}건`;
+        } catch (e) {
+            status.className = 'loader status-error';
+            status.innerText = `❌ 에러: ${e.message}`;
+            console.error(e);
+        }
+    }
+
+    function isTickerKeyword(keyword) {
+        return /^\d{6}\.(KS|KQ)$/i.test(keyword);
+    }
+
+    function renderResults(rows) {
+        const tableHeader = document.getElementById('tableHeader');
+        const resultBody = document.getElementById('resultBody');
+        tableHeader.innerHTML = '';
+        resultBody.innerHTML = '';
+
+        if (rows.length === 0) {
+            resultBody.innerHTML = '<tr><td colspan="100%">검색 결과가 없습니다.</td></tr>';
+            return;
+        }
+
+        const cols = Object.keys(rows[0]);
+        const hTr = document.createElement('tr');
+
+        cols.forEach(c => {
+            const th = document.createElement('th');
+            th.innerText = c;
+            hTr.appendChild(th);
+        });
+
+        tableHeader.appendChild(hTr);
+
+        rows.forEach(r => {
+            const tr = document.createElement('tr');
+
+            cols.forEach(c => {
+                const td = document.createElement('td');
+                td.innerText = formatCellValue(r[c], c);
+                tr.appendChild(td);
+            });
+
+            resultBody.appendChild(tr);
+        });
+    }
+
+    function formatCellValue(value, key = '') {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        // Date 컬럼은 시간 부분 제외하고 출력 (YYYY-MM-DD)
+        if (key.toLowerCase() === 'date' && typeof value === 'string' && value.includes(' ')) {
+            return value.split(' ')[0];
+        }
+
+        if (typeof value === 'number') {
+            return Number.isInteger(value)
+                ? value.toLocaleString()
+                : value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+        }
+
+        return String(value);
+    }
+
+    document.getElementById('searchBtn').onclick = search;
+
+    document.getElementById('searchInput').addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            search();
+        }
+    });
+
+    init();
+</script>
+</body>
+</html>
