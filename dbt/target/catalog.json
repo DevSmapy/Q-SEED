@@ -1,0 +1,394 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/catalog/v1.json",
+    "dbt_version": "1.11.7",
+    "generated_at": "2026-05-15T13:37:47.796501Z",
+    "invocation_id": "6cdd60fe-53ab-4e5c-a344-a2723378ce7d",
+    "invocation_started_at": "2026-05-15T13:37:47.042018Z",
+    "env": {}
+  },
+  "nodes": {
+    "model.qseed_dbt.data_quality_stats": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "data_quality_stats",
+        "database": "stocks",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "total_rows": {
+          "type": "BIGINT",
+          "index": 1,
+          "name": "total_rows",
+          "comment": null
+        },
+        "null_date_rows": {
+          "type": "BIGINT",
+          "index": 2,
+          "name": "null_date_rows",
+          "comment": null
+        },
+        "null_ticker_rows": {
+          "type": "BIGINT",
+          "index": 3,
+          "name": "null_ticker_rows",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.qseed_dbt.data_quality_stats"
+    },
+    "model.qseed_dbt.duplicates": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "duplicates",
+        "database": "stocks",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "Ticker": {
+          "type": "VARCHAR",
+          "index": 1,
+          "name": "Ticker",
+          "comment": null
+        },
+        "Date": {
+          "type": "TIMESTAMP",
+          "index": 2,
+          "name": "Date",
+          "comment": null
+        },
+        "duplicate_count": {
+          "type": "BIGINT",
+          "index": 3,
+          "name": "duplicate_count",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.qseed_dbt.duplicates"
+    },
+    "model.qseed_dbt.per_ticker_counts": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "per_ticker_counts",
+        "database": "stocks",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "Ticker": {
+          "type": "VARCHAR",
+          "index": 1,
+          "name": "Ticker",
+          "comment": null
+        },
+        "row_count": {
+          "type": "BIGINT",
+          "index": 2,
+          "name": "row_count",
+          "comment": null
+        },
+        "min_date": {
+          "type": "TIMESTAMP",
+          "index": 3,
+          "name": "min_date",
+          "comment": null
+        },
+        "max_date": {
+          "type": "TIMESTAMP",
+          "index": 4,
+          "name": "max_date",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.qseed_dbt.per_ticker_counts"
+    },
+    "model.qseed_dbt.profiling_stats": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "profiling_stats",
+        "database": "stocks",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "column_name": {
+          "type": "VARCHAR",
+          "index": 1,
+          "name": "column_name",
+          "comment": null
+        },
+        "total_rows": {
+          "type": "BIGINT",
+          "index": 2,
+          "name": "total_rows",
+          "comment": null
+        },
+        "null_count": {
+          "type": "BIGINT",
+          "index": 3,
+          "name": "null_count",
+          "comment": null
+        },
+        "zero_count": {
+          "type": "BIGINT",
+          "index": 4,
+          "name": "zero_count",
+          "comment": null
+        },
+        "min_val": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "min_val",
+          "comment": null
+        },
+        "max_val": {
+          "type": "DOUBLE",
+          "index": 6,
+          "name": "max_val",
+          "comment": null
+        },
+        "q1": { "type": "DOUBLE", "index": 7, "name": "q1", "comment": null },
+        "median": {
+          "type": "DOUBLE",
+          "index": 8,
+          "name": "median",
+          "comment": null
+        },
+        "q3": { "type": "DOUBLE", "index": 9, "name": "q3", "comment": null },
+        "null_rate": {
+          "type": "FLOAT",
+          "index": 10,
+          "name": "null_rate",
+          "comment": null
+        },
+        "zero_rate": {
+          "type": "FLOAT",
+          "index": 11,
+          "name": "zero_rate",
+          "comment": null
+        },
+        "iqr": {
+          "type": "DOUBLE",
+          "index": 12,
+          "name": "iqr",
+          "comment": null
+        },
+        "lower_bound": {
+          "type": "DOUBLE",
+          "index": 13,
+          "name": "lower_bound",
+          "comment": null
+        },
+        "upper_bound": {
+          "type": "DOUBLE",
+          "index": 14,
+          "name": "upper_bound",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.qseed_dbt.profiling_stats"
+    },
+    "model.qseed_dbt.storage_metrics": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "storage_metrics",
+        "database": "stocks",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "table_name": {
+          "type": "VARCHAR",
+          "index": 1,
+          "name": "table_name",
+          "comment": null
+        },
+        "estimated_row_count": {
+          "type": "BIGINT",
+          "index": 2,
+          "name": "estimated_row_count",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.qseed_dbt.storage_metrics"
+    },
+    "model.qseed_dbt.summary": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "summary",
+        "database": "stocks",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "total_row_count": {
+          "type": "BIGINT",
+          "index": 1,
+          "name": "total_row_count",
+          "comment": null
+        },
+        "total_ticker_count": {
+          "type": "BIGINT",
+          "index": 2,
+          "name": "total_ticker_count",
+          "comment": null
+        },
+        "min_date": {
+          "type": "TIMESTAMP",
+          "index": 3,
+          "name": "min_date",
+          "comment": null
+        },
+        "max_date": {
+          "type": "TIMESTAMP",
+          "index": 4,
+          "name": "max_date",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "model.qseed_dbt.summary"
+    }
+  },
+  "sources": {
+    "source.qseed_dbt.raw.raw_stocks": {
+      "metadata": {
+        "type": "BASE TABLE",
+        "schema": "main",
+        "name": "raw_stocks",
+        "database": "stocks",
+        "comment": null,
+        "owner": null
+      },
+      "columns": {
+        "Date": {
+          "type": "TIMESTAMP",
+          "index": 1,
+          "name": "Date",
+          "comment": null
+        },
+        "Ticker": {
+          "type": "VARCHAR",
+          "index": 2,
+          "name": "Ticker",
+          "comment": null
+        },
+        "Market": {
+          "type": "VARCHAR",
+          "index": 3,
+          "name": "Market",
+          "comment": null
+        },
+        "Open": {
+          "type": "DOUBLE",
+          "index": 4,
+          "name": "Open",
+          "comment": null
+        },
+        "High": {
+          "type": "DOUBLE",
+          "index": 5,
+          "name": "High",
+          "comment": null
+        },
+        "Low": { "type": "DOUBLE", "index": 6, "name": "Low", "comment": null },
+        "Close": {
+          "type": "DOUBLE",
+          "index": 7,
+          "name": "Close",
+          "comment": null
+        },
+        "Volume": {
+          "type": "BIGINT",
+          "index": 8,
+          "name": "Volume",
+          "comment": null
+        },
+        "Dividends": {
+          "type": "DOUBLE",
+          "index": 9,
+          "name": "Dividends",
+          "comment": null
+        },
+        "Split": {
+          "type": "DOUBLE",
+          "index": 10,
+          "name": "Split",
+          "comment": null
+        }
+      },
+      "stats": {
+        "has_stats": {
+          "id": "has_stats",
+          "label": "Has Stats?",
+          "value": false,
+          "include": false,
+          "description": "Indicates whether there are statistics for this table"
+        }
+      },
+      "unique_id": "source.qseed_dbt.raw.raw_stocks"
+    }
+  },
+  "errors": null
+}

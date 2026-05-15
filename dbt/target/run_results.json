@@ -1,0 +1,269 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/run-results/v6.json",
+    "dbt_version": "1.11.7",
+    "generated_at": "2026-05-15T13:37:47.647948Z",
+    "invocation_id": "6cdd60fe-53ab-4e5c-a344-a2723378ce7d",
+    "invocation_started_at": "2026-05-15T13:37:47.042018Z",
+    "env": {}
+  },
+  "results": [
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.625889Z",
+          "completed_at": "2026-05-15T13:37:47.633147Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.633335Z",
+          "completed_at": "2026-05-15T13:37:47.633343Z"
+        }
+      ],
+      "thread_id": "Thread-1 (worker)",
+      "execution_time": 0.00885462760925293,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.qseed_dbt.data_quality_stats",
+      "compiled": true,
+      "compiled_code": "SELECT\n    COUNT(*) AS total_rows,\n    COUNT(CASE WHEN Date IS NULL THEN 1 END) AS null_date_rows,\n    COUNT(CASE WHEN Ticker IS NULL OR Ticker = '' THEN 1 END) AS null_ticker_rows\nFROM \"stocks\".\"main\".\"raw_stocks\"",
+      "relation_name": "\"stocks\".\"main\".\"data_quality_stats\"",
+      "batch_results": null
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.629441Z",
+          "completed_at": "2026-05-15T13:37:47.633659Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.634033Z",
+          "completed_at": "2026-05-15T13:37:47.634037Z"
+        }
+      ],
+      "thread_id": "Thread-2 (worker)",
+      "execution_time": 0.009161949157714844,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.qseed_dbt.duplicates",
+      "compiled": true,
+      "compiled_code": "SELECT\n    Ticker,\n    Date,\n    COUNT(*) AS duplicate_count\nFROM \"stocks\".\"main\".\"raw_stocks\"\nGROUP BY Ticker, Date\nHAVING COUNT(*) > 1\nORDER BY duplicate_count DESC, Ticker, Date",
+      "relation_name": "\"stocks\".\"main\".\"duplicates\"",
+      "batch_results": null
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.630639Z",
+          "completed_at": "2026-05-15T13:37:47.634277Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.634868Z",
+          "completed_at": "2026-05-15T13:37:47.634872Z"
+        }
+      ],
+      "thread_id": "Thread-3 (worker)",
+      "execution_time": 0.009780168533325195,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.qseed_dbt.per_ticker_counts",
+      "compiled": true,
+      "compiled_code": "SELECT\n    Ticker,\n    COUNT(*) AS row_count,\n    MIN(Date) AS min_date,\n    MAX(Date) AS max_date\nFROM \"stocks\".\"main\".\"raw_stocks\"\nGROUP BY Ticker\nORDER BY row_count DESC, Ticker",
+      "relation_name": "\"stocks\".\"main\".\"per_ticker_counts\"",
+      "batch_results": null
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.631788Z",
+          "completed_at": "2026-05-15T13:37:47.634414Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.635104Z",
+          "completed_at": "2026-05-15T13:37:47.635106Z"
+        }
+      ],
+      "thread_id": "Thread-4 (worker)",
+      "execution_time": 0.009687185287475586,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.qseed_dbt.profiling_stats",
+      "compiled": true,
+      "compiled_code": "WITH base AS (\n    SELECT * FROM \"stocks\".\"main\".\"raw_stocks\"\n),\n\ncolumn_stats AS (\n    SELECT\n        'Open' AS column_name,\n        COUNT(*) AS total_rows,\n        COUNT(CASE WHEN Open IS NULL THEN 1 END) AS null_count,\n        COUNT(CASE WHEN Open = 0 THEN 1 END) AS zero_count,\n        MIN(Open) AS min_val,\n        MAX(Open) AS max_val,\n        QUANTILE_CONT(Open, 0.25) AS q1,\n        QUANTILE_CONT(Open, 0.5) AS median,\n        QUANTILE_CONT(Open, 0.75) AS q3\n    FROM base\n    UNION ALL\n    SELECT\n        'Close' AS column_name,\n        COUNT(*) AS total_rows,\n        COUNT(CASE WHEN Close IS NULL THEN 1 END) AS null_count,\n        COUNT(CASE WHEN Close = 0 THEN 1 END) AS zero_count,\n        MIN(Close) AS min_val,\n        MAX(Close) AS max_val,\n        QUANTILE_CONT(Close, 0.25) AS q1,\n        QUANTILE_CONT(Close, 0.5) AS median,\n        QUANTILE_CONT(Close, 0.75) AS q3\n    FROM base\n    -- \ud544\uc694\ud55c \ub2e4\ub978 \uc218\uce58\ud615 \uceec\ub7fc\ub4e4(High, Low, Volume \ub4f1) \ucd94\uac00 \uac00\ub2a5\n),\n\nfinal AS (\n    SELECT\n        *,\n        (null_count::FLOAT / total_rows) * 100 AS null_rate,\n        (zero_count::FLOAT / total_rows) * 100 AS zero_rate,\n        (q3 - q1) AS iqr,\n        (q1 - 1.5 * (q3 - q1)) AS lower_bound,\n        (q3 + 1.5 * (q3 - q1)) AS upper_bound\n    FROM column_stats\n)\n\nSELECT * FROM final",
+      "relation_name": "\"stocks\".\"main\".\"profiling_stats\"",
+      "batch_results": null
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.635988Z",
+          "completed_at": "2026-05-15T13:37:47.638730Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.645462Z",
+          "completed_at": "2026-05-15T13:37:47.645467Z"
+        }
+      ],
+      "thread_id": "Thread-1 (worker)",
+      "execution_time": 0.01096200942993164,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.qseed_dbt.storage_metrics",
+      "compiled": true,
+      "compiled_code": "-- DuckDB\uc758 \uba54\ud0c0\ub370\uc774\ud130\ub97c \uc0ac\uc6a9\ud558\uc5ec \ud14c\uc774\ube14\ubcc4 \uc800\uc7a5 \uc6a9\ub7c9 \ud655\uc778\n-- \uc8fc\uc758: DuckDB \ubc84\uc804\uc5d0 \ub530\ub77c \uba54\ud0c0\ub370\uc774\ud130 \ud14c\uc774\ube14\uba85\uc774 \ub2e4\ub97c \uc218 \uc788\uc74c\nSELECT\n    table_name,\n    estimated_size AS estimated_row_count,\n    -- DuckDB\ub294 \uceec\ub7fc \uc9c0\ud5a5\uc774\ub77c \uc815\ud655\ud55c \ubc14\uc774\ud2b8 \ud06c\uae30\ub97c \uad6c\ud558\uae30 \uc704\ud574 \uc815\ubc00 \ucffc\ub9ac\uac00 \ud544\uc694\ud560 \uc218 \uc788\uc73c\ub098\n    -- \ud1b5\uc0c1\uc801\uc73c\ub85c \ub370\uc774\ud130 \ud30c\uc77c \uc804\uccb4 \ud06c\uae30\ub97c \uae30\uc900\uc73c\ub85c \ube44\uad50\ud558\ub294 \ubc29\uc2dd\uc744 \uad8c\uc7a5\nFROM duckdb_tables()\nWHERE schema_name = 'main'",
+      "relation_name": "\"stocks\".\"main\".\"storage_metrics\"",
+      "batch_results": null
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.637274Z",
+          "completed_at": "2026-05-15T13:37:47.645748Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.645988Z",
+          "completed_at": "2026-05-15T13:37:47.645992Z"
+        }
+      ],
+      "thread_id": "Thread-2 (worker)",
+      "execution_time": 0.010563135147094727,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "model.qseed_dbt.summary",
+      "compiled": true,
+      "compiled_code": "SELECT\n    COUNT(*) AS total_row_count,\n    COUNT(DISTINCT Ticker) AS total_ticker_count,\n    MIN(Date) AS min_date,\n    MAX(Date) AS max_date\nFROM \"stocks\".\"main\".\"raw_stocks\"",
+      "relation_name": "\"stocks\".\"main\".\"summary\"",
+      "batch_results": null
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.638888Z",
+          "completed_at": "2026-05-15T13:37:47.646320Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.646607Z",
+          "completed_at": "2026-05-15T13:37:47.646610Z"
+        }
+      ],
+      "thread_id": "Thread-3 (worker)",
+      "execution_time": 0.009706974029541016,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "test.qseed_dbt.source_not_null_raw_raw_stocks_Date.dea99dd6ad",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect Date\nfrom \"stocks\".\"main\".\"raw_stocks\"\nwhere Date is null\n\n\n",
+      "relation_name": null,
+      "batch_results": null
+    },
+    {
+      "status": "success",
+      "timing": [
+        {
+          "name": "compile",
+          "started_at": "2026-05-15T13:37:47.643806Z",
+          "completed_at": "2026-05-15T13:37:47.646464Z"
+        },
+        {
+          "name": "execute",
+          "started_at": "2026-05-15T13:37:47.646848Z",
+          "completed_at": "2026-05-15T13:37:47.646850Z"
+        }
+      ],
+      "thread_id": "Thread-4 (worker)",
+      "execution_time": 0.009788274765014648,
+      "adapter_response": {},
+      "message": null,
+      "failures": null,
+      "unique_id": "test.qseed_dbt.source_not_null_raw_raw_stocks_Ticker.10b57973f4",
+      "compiled": true,
+      "compiled_code": "\n    \n    \n\n\n\nselect Ticker\nfrom \"stocks\".\"main\".\"raw_stocks\"\nwhere Ticker is null\n\n\n",
+      "relation_name": null,
+      "batch_results": null
+    }
+  ],
+  "elapsed_time": 0.10263514518737793,
+  "args": {
+    "write_json": true,
+    "state_modified_compare_more_unrendered_values": false,
+    "show_all_deprecations": false,
+    "indirect_selection": "eager",
+    "macro_debugging": false,
+    "use_colors_file": true,
+    "send_anonymous_usage_stats": true,
+    "require_batched_execution_for_custom_microbatch_strategy": false,
+    "static_parser": true,
+    "empty_catalog": false,
+    "require_nested_cumulative_type_params": false,
+    "use_fast_test_edges": false,
+    "populate_cache": true,
+    "use_colors": true,
+    "quiet": false,
+    "require_yaml_configuration_for_mf_time_spines": false,
+    "require_resource_names_without_spaces": true,
+    "validate_macro_args": false,
+    "which": "generate",
+    "require_explicit_package_overrides_for_builtin_materializations": true,
+    "log_format": "default",
+    "upload_to_artifacts_ingest_api": false,
+    "invocation_command": "dbt docs generate --profiles-dir .",
+    "profiles_dir": ".",
+    "require_unique_project_resource_names": false,
+    "source_freshness_run_project_hooks": true,
+    "select": [],
+    "require_all_warnings_handled_by_warn_error": false,
+    "show_resource_report": false,
+    "vars": {},
+    "warn_error_options": { "error": [], "warn": [], "silence": [] },
+    "version_check": true,
+    "introspect": true,
+    "log_format_file": "debug",
+    "state_modified_compare_vars": false,
+    "print": true,
+    "cache_selected_only": false,
+    "exclude": [],
+    "log_path": "/Users/leeyongkyun/PycharmProjects/Q-SEED/dbt/logs",
+    "defer": false,
+    "require_generic_test_arguments_property": true,
+    "skip_nodes_if_on_run_start_fails": false,
+    "strict_mode": false,
+    "printer_width": 80,
+    "log_level": "info",
+    "partial_parse_file_diff": true,
+    "require_ref_searches_node_package_before_root": false,
+    "static": false,
+    "log_file_max_bytes": 10485760,
+    "compile": true,
+    "project_dir": "/Users/leeyongkyun/PycharmProjects/Q-SEED/dbt",
+    "partial_parse": true,
+    "favor_state": false,
+    "log_level_file": "debug"
+  }
+}

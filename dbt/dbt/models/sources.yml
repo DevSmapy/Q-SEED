@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: main
+    tables:
+      - name: raw_stocks
+        description: "최초 적재된 원천 주식 데이터"
+        columns:
+          - name: Date
+            description: "거래 날짜"
+          - name: Ticker
+            description: "종목 코드"

@@ -1,0 +1,36 @@
+{
+  "_invocation_id": "6cdd60fe-53ab-4e5c-a344-a2723378ce7d",
+  "linked": {
+    "0": {
+      "name": "source.qseed_dbt.raw.raw_stocks",
+      "type": "source",
+      "succ": [2, 3, 4, 5, 6, 7, 8]
+    },
+    "1": {
+      "name": "model.qseed_dbt.storage_metrics",
+      "type": "model",
+      "succ": [9]
+    },
+    "2": { "name": "model.qseed_dbt.data_quality_stats", "type": "model" },
+    "3": { "name": "model.qseed_dbt.duplicates", "type": "model" },
+    "4": { "name": "model.qseed_dbt.per_ticker_counts", "type": "model" },
+    "5": {
+      "name": "model.qseed_dbt.profiling_stats",
+      "type": "model",
+      "succ": [9]
+    },
+    "6": { "name": "model.qseed_dbt.summary", "type": "model", "succ": [9] },
+    "7": {
+      "name": "test.qseed_dbt.source_not_null_raw_raw_stocks_Date.dea99dd6ad",
+      "type": "test"
+    },
+    "8": {
+      "name": "test.qseed_dbt.source_not_null_raw_raw_stocks_Ticker.10b57973f4",
+      "type": "test"
+    },
+    "9": {
+      "name": "exposure.qseed_dbt.stock_data_profiling_dashboard",
+      "type": "exposure"
+    }
+  }
+}
