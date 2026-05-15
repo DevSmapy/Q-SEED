@@ -51,16 +51,25 @@ class DuckDBSearchRepository:
         """검색 대상 테이블의 기본 요약 정보 조회.
 
         Returns:
-            row_count, table_name 등의 요약 정보
+            row_count, ticker_count, min_date, max_date 등의 요약 정보
         """
         table_identifier = self._quote_identifier(self.table_name)
 
         with self._connect() as conn:
             row_count = conn.execute(f"SELECT COUNT(*) FROM {table_identifier}").fetchone()[0]
+            ticker_count = conn.execute(
+                f"SELECT COUNT(DISTINCT Ticker) FROM {table_identifier}"
+            ).fetchone()[0]
+            date_range = conn.execute(
+                f"SELECT MIN(Date), MAX(Date) FROM {table_identifier}"
+            ).fetchone()
 
         return {
             "table_name": self.table_name,
             "row_count": int(row_count),
+            "ticker_count": int(ticker_count),
+            "min_date": str(date_range[0]) if date_range[0] else None,
+            "max_date": str(date_range[1]) if date_range[1] else None,
         }
 
     def search(self, keyword: str, limit: int) -> list[dict[str, Any]]:
@@ -132,6 +141,34 @@ class DuckDBSearchRepository:
                 LIMIT ?
                 """,
                 [ticker, limit],
+            )
+            columns = [desc[0] for desc in result.description]
+            rows = result.fetchall()
+
+        return [dict(zip(columns, row, strict=True)) for row in rows]
+
+    def search_by_market(self, market: str, limit: int) -> list[dict[str, Any]]:
+        """Market 컬럼 기준으로 데이터 조회.
+
+        Args:
+            market: 조회할 시장명
+            limit: 최대 반환 행 수
+
+        Returns:
+            시장별 검색 결과
+        """
+        table_identifier = self._quote_identifier(self.table_name)
+
+        with self._connect() as conn:
+            result = conn.execute(
+                f"""
+                SELECT *
+                FROM {table_identifier}
+                WHERE Market = ?
+                ORDER BY Date DESC
+                LIMIT ?
+                """,
+                [market, limit],
             )
             columns = [desc[0] for desc in result.description]
             rows = result.fetchall()
