@@ -1,0 +1,7 @@
+qseed_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/stocks.db"
+      threads: 4
