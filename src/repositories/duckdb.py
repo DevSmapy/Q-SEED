@@ -86,6 +86,38 @@ class DuckDBRepository:
         finally:
             conn.unregister("df_to_insert")
 
+    def deduplicate_raw_stocks(self) -> None:
+        """raw_stocks 테이블의 중복 데이터를 제거 (Ticker, Date 기준).
+
+        프라이머리 키가 없는 상태에서 (Ticker, Date)가 동일한 행들 중
+        하나만 남기고 삭제합니다. 최신 데이터(Market 정보가 있는 등)를 우선순위로 둘 수 있도록
+        정렬 기준을 정교화합니다.
+        """
+        self.ensure_database_file()
+        # DuckDB에서 중복 제거를 위한 효율적인 방법:
+        # 1. 고유한 행만 선택하여 임시 테이블 생성
+        # 2. 원본 테이블 교체
+        # ORDER BY에서 Market을 추가하여 Unknown이 아닌 실제 시장 정보를 우선하도록 함
+        self.conn.execute(
+            """
+            CREATE TABLE raw_stocks_tmp AS
+            SELECT Date, Ticker, Market, Open, High, Low, Close, Volume, Dividends, Split
+            FROM (
+                SELECT *,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY Ticker, Date
+                           ORDER BY CASE WHEN Market = 'Unknown' THEN 1 ELSE 0 END, Market
+                       ) as row_num
+                FROM raw_stocks
+            )
+            WHERE row_num = 1;
+            """
+        )
+        self.conn.execute("DROP TABLE raw_stocks")
+        self.conn.execute("ALTER TABLE raw_stocks_tmp RENAME TO raw_stocks")
+        self.conn.execute("CHECKPOINT")
+        print("데이터베이스 내 중복 데이터 제거 완료.")
+
     def fetch_all(self) -> pd.DataFrame:
         """저장된 전체 데이터 조회."""
         self.ensure_database_file()

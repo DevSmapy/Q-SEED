@@ -26,7 +26,7 @@ class StockConfig(BaseSettings):
 
     # 경로 설정
     base_dir: Path = Field(default=Path("./data"), description="기본 데이터 디렉토리")
-    ticker_dir: Path = Field(default=Path("./data/kor_ticker"), description="티커 데이터 디렉토리")
+    log_dir: Path = Field(default=Path("./data/data_log"), description="로그 데이터 디렉토리")
     db_path: Path = Field(default=Path("./data/stocks.db"), description="DuckDB 파일 경로")
 
     # 파일명 설정
@@ -34,21 +34,37 @@ class StockConfig(BaseSettings):
     no_data_filename: str = Field(
         default="no_data_list.txt", description="데이터 없는 종목 목록 파일명"
     )
+    completed_data_filename: str = Field(
+        default="completed_data_list.txt", description="수집 완료된 종목 목록 파일명"
+    )
+    last_date_filename: str = Field(
+        default="last_date.txt", description="마지막 수집 날짜 기록 파일명"
+    )
 
     @cached_property
     def ticker_list_path(self) -> Path:
         """티커 목록 파일 전체 경로."""
-        return self.ticker_dir / self.ticker_list_filename
+        return self.log_dir / self.ticker_list_filename
 
     @cached_property
     def no_data_path(self) -> Path:
         """데이터 없는 종목 목록 파일 전체 경로."""
-        return self.ticker_dir / self.no_data_filename
+        return self.log_dir / self.no_data_filename
+
+    @cached_property
+    def completed_data_path(self) -> Path:
+        """수집 완료된 종목 목록 파일 전체 경로."""
+        return self.log_dir / self.completed_data_filename
+
+    @cached_property
+    def last_date_path(self) -> Path:
+        """마지막 수집 날짜 파일 전체 경로."""
+        return self.log_dir / self.last_date_filename
 
     def ensure_directories(self) -> None:
         """필요한 디렉토리 생성."""
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.ticker_dir.mkdir(parents=True, exist_ok=True)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
 
 
 class GCSConfig(BaseSettings):

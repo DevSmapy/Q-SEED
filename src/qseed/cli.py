@@ -3,8 +3,56 @@
 from __future__ import annotations
 
 import argparse
+import logging
+import sys
+from pathlib import Path
 
 from src.pipelines.stock_pipeline import StockDataPipeline
+
+
+def setup_logging(log_file: Path) -> logging.Logger:
+    """로깅 설정. 콘솔과 파일 모두에 출력."""
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # 로거 생성
+    logger = logging.getLogger("qseed")
+    logger.setLevel(logging.INFO)
+
+    # 기존 핸들러 제거 (중복 방지)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    # 포맷 설정
+    log_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+    # 파일 핸들러 (직접 쓰기 방식으로 시도)
+    class SimpleFileHandler(logging.Handler):
+        def __init__(self, filename: Path) -> None:
+            super().__init__()
+            self.filename = filename
+
+        def emit(self, record: logging.LogRecord) -> None:
+            try:
+                msg = self.format(record)
+                with open(self.filename, "a", encoding="utf-8") as f:
+                    f.write(msg + "\n")
+                    f.flush()
+            except Exception:
+                self.handleError(record)
+
+    file_handler = SimpleFileHandler(log_file)
+    file_handler.setFormatter(log_format)
+    logger.addHandler(file_handler)
+
+    # 콘솔 핸들러
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(log_format)
+    logger.addHandler(console_handler)
+
+    # 로거가 전파되지 않도록 설정 (basicConfig와의 간섭 방지)
+    logger.propagate = False
+
+    return logger
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -68,13 +116,19 @@ def main() -> int:
 
     pipeline = StockDataPipeline()
 
+    # 로깅 설정 (data/data_log/ 디렉토리 내에 로그 파일 생성)
+    log_path = pipeline.config.stock.log_dir / "qseed_run.log"
+    logger = setup_logging(log_path)
+
+    logger.info("Q-SEED CLI 실행 시작")
+
     # --build-db 옵션 처리: 모든 종목, 최대 기간 설정
     if args.build_db:
         pipeline.config.stock.max_stocks = 1000000  # 사실상 제한 없음
         pipeline.fetcher.period = "max"
-        print("모드: 전체 데이터베이스 구축 (--build-db)")
-        print("- 모든 지원 시장의 모든 티커 수집 시도")
-        print("- 데이터 수집 기간: max")
+        logger.info("모드: 전체 데이터베이스 구축 (--build-db)")
+        logger.info("- 모든 지원 시장의 모든 티커 수집 시도")
+        logger.info("- 데이터 수집 기간: max")
 
     if args.max_stocks is not None:
         pipeline.config.stock.max_stocks = args.max_stocks
@@ -87,6 +141,7 @@ def main() -> int:
 
     pipeline.run(mode=args.mode)
 
+    logger.info("Q-SEED CLI 실행 완료")
     return 0
 
 

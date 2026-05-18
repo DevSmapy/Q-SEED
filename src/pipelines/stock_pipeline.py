@@ -177,9 +177,29 @@ class StockDataPipeline:
 
                     time.sleep(self.config.stock.sleep_interval)
 
+            # 4. 데이터베이스 내 최종 중복 제거
+            repo.deduplicate_raw_stocks()
+
         # 4. 결과 정리
         failed_tickers = sorted(set(attempted_tickers) - success_tickers)
         save_list_to_file(failed_tickers, str(self.config.stock.no_data_path))
+        save_list_to_file(sorted(success_tickers), str(self.config.stock.completed_data_path))
+
+        # 마지막 수집 날짜 기록 (데이터가 있는 경우)
+        if not success_tickers:
+            last_date_str = "None"
+        else:
+            # DB에서 가장 최신 날짜 조회
+            with self.repository as repo:
+                try:
+                    query = "SELECT MAX(Date) FROM raw_stocks"
+                    res = repo.conn.execute(query).fetchone()
+                    last_date_str = str(res[0]) if res and res[0] else "None"
+                except Exception:
+                    last_date_str = "Unknown"
+
+        with open(self.config.stock.last_date_path, "w", encoding="utf-8") as f:
+            f.write(last_date_str)
 
         print(
             format_summary(
