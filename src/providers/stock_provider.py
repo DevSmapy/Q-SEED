@@ -77,13 +77,15 @@ class StockProvider:
         return result_df
 
     def get_all_tickers(self, max_per_market: int | None = None) -> pd.DataFrame:
-        """지원하는 모든 시장의 티커 목록 조회.
+        """지원하는 모든 시장의 티커 목록 조회 (중복 제거 포함).
+
+        여러 시장에 중복 포함된 종목의 경우, 하나의 시장 정보만 유지합니다.
 
         Args:
             max_per_market: 시장당 최대 종목 수
 
         Returns:
-            모든 시장의 티커가 합쳐진 DataFrame
+            모든 시장의 티커가 중복 없이 합쳐진 DataFrame
         """
         dfs = []
         for market in self.MARKETS:
@@ -96,7 +98,19 @@ class StockProvider:
         if not dfs:
             return pd.DataFrame(columns=["Ticker", "Market"])
 
-        return pd.concat(dfs, ignore_index=True)
+        combined_df = pd.concat(dfs, ignore_index=True)
+
+        # 티커 기준 중복 제거 (첫 번째 발견된 시장 유지)
+        # S&P500 등에 포함된 종목이 NASDAQ/NYSE 등과 중복될 때 하나만 남김
+        before_count = len(combined_df)
+        unique_df = combined_df.drop_duplicates(subset=["Ticker"], keep="first")
+        after_count = len(unique_df)
+
+        if before_count > after_count:
+            remain_count = before_count - after_count
+            print(f"티커 중복 제거 완료: {before_count} -> {after_count} ({remain_count}개 제거)")
+
+        return unique_df
 
     def save_tickers_to_csv(
         self,

@@ -177,6 +177,9 @@ class StockDataPipeline:
 
                     time.sleep(self.config.stock.sleep_interval)
 
+            # 4. 데이터베이스 내 최종 중복 제거
+            repo.deduplicate_raw_stocks()
+
         # 4. 결과 정리
         failed_tickers = sorted(set(attempted_tickers) - success_tickers)
         save_list_to_file(failed_tickers, str(self.config.stock.no_data_path))

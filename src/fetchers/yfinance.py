@@ -149,7 +149,7 @@ class YFinanceFetcher:
         return df.stack(level=0, future_stack=True).reset_index()
 
     def _clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """DataFrame 정제 (불필요 컬럼 삭제, 컬럼명 변경, 기본값 추가).
+        """DataFrame 정제 (불필요 컬럼 삭제, 컬럼명 변경, 기본값 추가, 중복 제거).
 
         Args:
             df: 정제할 DataFrame
@@ -179,5 +179,9 @@ class YFinanceFetcher:
 
         # Close가 NaN인 행 제거 (데이터 없는 종목 식별)
         df = df.dropna(subset=["Close"])
+
+        # 수집된 데이터 내 중복 제거 (Ticker, Date 기준)
+        if not df.empty and "Ticker" in df.columns and "Date" in df.columns:
+            df = df.drop_duplicates(subset=["Ticker", "Date"], keep="last")
 
         return df
