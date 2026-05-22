@@ -1,8 +1,8 @@
-SELECT
+select
     Ticker,
-    COUNT(*) AS row_count,
-    MIN(Date) AS min_date,
-    MAX(Date) AS max_date
-FROM {{ source('raw', 'raw_stocks') }}
-GROUP BY Ticker
-ORDER BY row_count DESC, Ticker
+    Market,
+    count(*) as row_count,
+    min(Date) as start_date,
+    max(Date) as end_date
+from {{ ref('stg_raw_stocks') }}
+group by 1, 2

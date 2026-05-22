@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: stg_raw_stocks
+    description: "staging model for raw_stocks"
+
+  - name: summary
+    description: "전체 데이터 요약 정보"
+    columns:
+      - name: total_row_count
+        description: "전체 행 수"
+      - name: total_ticker_count
+        description: "전체 티커 수"
+
+  - name: per_ticker_counts
+    description: "티커별 데이터 개수 및 수집 기간"
+    columns:
+      - name: Ticker
+        description: "티커명"
+      - name: row_count
+        description: "데이터 개수"

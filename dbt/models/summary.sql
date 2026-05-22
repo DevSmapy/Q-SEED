@@ -1,6 +1,6 @@
-SELECT
-    COUNT(*) AS total_row_count,
-    COUNT(DISTINCT Ticker) AS total_ticker_count,
-    MIN(Date) AS min_date,
-    MAX(Date) AS max_date
-FROM {{ source('raw', 'raw_stocks') }}
+select
+    count(*) as total_row_count,
+    count(distinct Ticker) as total_ticker_count,
+    min(Date) as first_date,
+    max(Date) as last_date
+from {{ ref('stg_raw_stocks') }}

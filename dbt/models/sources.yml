@@ -5,37 +5,25 @@ sources:
     schema: main
     tables:
       - name: raw_stocks
-        description: "최초 적재된 원천 주식 데이터"
+        description: "Raw stocks data from DuckDB"
         columns:
           - name: Date
-            description: "거래 날짜"
-            tests:
-              - not_null
+            description: "Date of the transaction"
           - name: Ticker
-            description: "종목 코드"
-            tests:
-              - not_null
-
-models:
-  - name: summary
-    description: "데이터셋의 전체 요약 통계"
-    columns:
-      - name: total_row_count
-        description: "전체 행 수"
-      - name: total_ticker_count
-        description: "전체 티커(종목) 수"
-  - name: profiling_stats
-    description: "데이터 프로파일링 결과 (Null/Zero 비율 및 이상치 경계값)"
-    columns:
-      - name: column_name
-        description: "컬럼명"
-      - name: null_rate
-        description: "Null 비율 (%)"
-      - name: zero_rate
-        description: "0값 비율 (%)"
-      - name: lower_bound
-        description: "Box plot 하단 경계값 (이상치 판별용)"
-      - name: upper_bound
-        description: "Box plot 상단 경계값 (이상치 판별용)"
-  - name: storage_metrics
-    description: "DuckDB 스토리지 사용량 메트릭"
+            description: "Ticker symbol of the stock"
+          - name: Market
+            description: "Market of the stock"
+          - name: Open
+            description: "Opening price of the stock at the beginning of the day"
+          - name: High
+            description: "Highest price of the stock during the day"
+          - name: Low
+            description: "Lowest price of the stock during the day"
+          - name: Close
+            description: "Closing price of the stock at the end of the day"
+          - name: Volume
+            description: "Volume of the stock traded during the day"
+          - name: Dividends
+            description: "Dividends"
+          - name: Split
+            description: "Splits"
