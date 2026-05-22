@@ -72,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="전체 데이터베이스 구축 (모든 시장, 최대 기간)",
     )
     parser.add_argument(
+        "--update-db",
+        action="store_true",
+        help="데이터베이스 증분 업데이트 (마지막 날짜 이후 데이터 수집)",
+    )
+    parser.add_argument(
         "--mode",
         type=str,
         default="full",
@@ -102,6 +107,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="청크 간 대기 시간(초)",
     )
+    parser.add_argument(
+        "--start-date",
+        type=str,
+        default=None,
+        help="수집 시작 날짜 (YYYY-MM-DD, incremental 모드 전용)",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=str,
+        default=None,
+        help="수집 종료 날짜 (YYYY-MM-DD, incremental 모드 전용)",
+    )
     return parser
 
 
@@ -110,7 +127,7 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    if not args.run_stock_pipeline and not args.build_db:
+    if not args.run_stock_pipeline and not args.build_db and not args.update_db:
         parser.print_help()
         return 0
 
@@ -122,13 +139,21 @@ def main() -> int:
 
     logger.info("Q-SEED CLI 실행 시작")
 
-    # --build-db 옵션 처리: 모든 종목, 최대 기간 설정
+    # --build-db 또는 --update-db 옵션 처리
+    mode = args.mode
     if args.build_db:
         pipeline.config.stock.max_stocks = 1000000  # 사실상 제한 없음
         pipeline.fetcher.period = "max"
+        mode = "full"
         logger.info("모드: 전체 데이터베이스 구축 (--build-db)")
         logger.info("- 모든 지원 시장의 모든 티커 수집 시도")
         logger.info("- 데이터 수집 기간: max")
+    elif args.update_db:
+        pipeline.config.stock.max_stocks = 1000000  # 사실상 제한 없음
+        mode = "incremental"
+        logger.info("모드: 데이터베이스 증분 업데이트 (--update-db)")
+        logger.info("- 모든 지원 시장의 모든 티커 수집 시도")
+        logger.info("- 데이터베이스의 마지막 날짜 이후부터 업데이트")
 
     if args.max_stocks is not None:
         pipeline.config.stock.max_stocks = args.max_stocks
@@ -139,7 +164,11 @@ def main() -> int:
     if args.sleep_interval is not None:
         pipeline.config.stock.sleep_interval = args.sleep_interval
 
-    pipeline.run(mode=args.mode)
+    pipeline.run(
+        mode=mode,
+        start_date=args.start_date,
+        end_date=args.end_date,
+    )
 
     logger.info("Q-SEED CLI 실행 완료")
     return 0

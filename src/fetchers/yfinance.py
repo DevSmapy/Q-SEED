@@ -82,13 +82,19 @@ class YFinanceFetcher:
         self.threads = threads
 
     def fetch(
-        self, tickers: list[str], ticker_to_market: dict[str, str] | None = None
+        self,
+        tickers: list[str],
+        ticker_to_market: dict[str, str] | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> FetchResult:
         """여러 종목의 주가 데이터 수집.
 
         Args:
             tickers: 수집할 티커 목록
             ticker_to_market: 티커별 시장 정보 매핑 (예: {"AAPL": "NASDAQ"})
+            start_date: 수집 시작 날짜 (YYYY-MM-DD)
+            end_date: 수집 종료 날짜 (YYYY-MM-DD)
 
         Returns:
             FetchResult: 수집 결과 (DataFrame, 성공/실패 티커)
@@ -101,14 +107,23 @@ class YFinanceFetcher:
             )
 
         # yfinance로 데이터 다운로드
-        raw_df: pd.DataFrame = yf.download(
-            tickers,
-            period=self.period,
-            threads=self.threads,
-            group_by="Ticker",
-            auto_adjust=self.auto_adjust,
-            actions=self.actions,
-        )
+        download_kwargs = {
+            "tickers": tickers,
+            "threads": self.threads,
+            "group_by": "Ticker",
+            "auto_adjust": self.auto_adjust,
+            "actions": self.actions,
+        }
+
+        if start_date or end_date:
+            if start_date:
+                download_kwargs["start"] = start_date
+            if end_date:
+                download_kwargs["end"] = end_date
+        else:
+            download_kwargs["period"] = self.period
+
+        raw_df: pd.DataFrame = yf.download(**download_kwargs)
 
         # 데이터가 없는 경우
         if raw_df.empty:
