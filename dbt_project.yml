@@ -1,4 +1,4 @@
-xname: 'qseed_dbt'
+name: 'qseed_dbt'
 version: '1.0.0'
 config-version: 2
 
