@@ -3,5 +3,5 @@ qseed_dbt:
   outputs:
     dev:
       type: duckdb
-      path: "../data/stocks.db"
+      path: "data/stocks.db"
       threads: 4
