@@ -7,7 +7,7 @@ import logging
 import sys
 from pathlib import Path
 
-from src.pipelines.stock_pipeline import StockDataPipeline
+from src.pipelines.stock_pipeline import StockDataPipeline, StockPipelineDependencies
 
 
 def setup_logging(log_file: Path) -> logging.Logger:
@@ -119,6 +119,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="수집 종료 날짜 (YYYY-MM-DD, incremental 모드 전용)",
     )
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help='데이터 디렉토리 경로 (기본값: "./data")',
+    )
     return parser
 
 
@@ -131,7 +137,16 @@ def main() -> int:
         parser.print_help()
         return 0
 
-    pipeline = StockDataPipeline()
+    if args.data_dir is not None:
+        new_base_dir = Path(args.data_dir)
+        # config의 base_dir를 직접 수정 (pydantic-settings 모델)
+        from src.qseed.config import get_config
+
+        config = get_config()
+        config.stock.base_dir = new_base_dir
+        pipeline = StockDataPipeline(deps=StockPipelineDependencies(config=config))
+    else:
+        pipeline = StockDataPipeline()
 
     # 로깅 설정 (data/data_log/ 디렉토리 내에 로그 파일 생성)
     log_path = pipeline.config.stock.log_dir / "qseed_run.log"

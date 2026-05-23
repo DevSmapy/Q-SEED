@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -21,10 +20,10 @@ class ParquetRepository:
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def reset(self) -> None:
-        """Parquet 저장 디렉토리를 초기화."""
+        """Parquet 저장 디렉토리를 초기화 (Parquet 파일만 삭제)."""
         if self.base_dir.exists():
-            shutil.rmtree(self.base_dir)
-        self.base_dir.mkdir(parents=True, exist_ok=True)
+            for file in self.base_dir.glob("*.parquet"):
+                file.unlink()
 
     def save(self, dataframe: pd.DataFrame, filename: str) -> Path:
         """DataFrame을 Parquet 파일로 저장.

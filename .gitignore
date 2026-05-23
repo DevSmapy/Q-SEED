@@ -3,4 +3,5 @@
 /research/my_stocks.db
 /dbt/target/
 /research/
+/.idea
 /dbt/.user.yml
