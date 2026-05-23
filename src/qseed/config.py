@@ -26,8 +26,16 @@ class StockConfig(BaseSettings):
 
     # 경로 설정
     base_dir: Path = Field(default=Path("./data"), description="기본 데이터 디렉토리")
-    log_dir: Path = Field(default=Path("./data/data_log"), description="로그 데이터 디렉토리")
-    db_path: Path = Field(default=Path("./data/stocks.db"), description="DuckDB 파일 경로")
+
+    @property
+    def log_dir(self) -> Path:
+        """로그 데이터 디렉토리."""
+        return self.base_dir / "data_log"
+
+    @property
+    def db_path(self) -> Path:
+        """DuckDB 파일 경로."""
+        return self.base_dir / "stocks.db"
 
     # 파일명 설정
     ticker_list_filename: str = Field(default="krx_list.csv", description="티커 목록 파일명")
