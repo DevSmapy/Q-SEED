@@ -19,3 +19,17 @@ models:
         description: "티커명"
       - name: row_count
         description: "데이터 개수"
+
+  - name: rpt_ticker_details
+    description: "티커별 상세 정보"
+    columns:
+      - name: Ticker
+        description: "티커명"
+      - name: Market
+        description: "시장명"
+      - name: row_count
+        description: "데이터 개수"
+      - name: start_date
+        description: "데이터 수집 시작 날짜"
+      - name: end_date
+        description: "데이터 수집 종료 날짜"
