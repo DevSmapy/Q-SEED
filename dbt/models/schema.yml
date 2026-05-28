@@ -12,7 +12,7 @@ models:
       - name: total_ticker_count
         description: "전체 티커 수"
 
-  - name: per_ticker_counts
+  - name: data_quality
     description: "티커별 데이터 개수 및 수집 기간"
     columns:
       - name: Ticker
