@@ -1,150 +1,153 @@
-# Q-SEED 📈
+# Q-SEED
 
 > **Quant Strategy Evaluation & Engine Development**
 
-**Q-SEED**는 데이터 기반의 퀀트 투자 전략을 체계적으로 연구하고, 백테스팅 엔진을 직접 구현하며 자산 관리 자동화로 나아가기 위한 첫 번째 마일스톤 프로젝트입니다.
+한국·미국 주식 시장 데이터를 자동으로 수집하고, DuckDB에 적재한 뒤 dbt로 품질 검증까지 수행하는 퀀트 연구용 데이터 파이프라인입니다.
+장기 목표는 팩터 연구, 백테스팅, 포트폴리오 최적화로 이어지는 **자동 투자 연구 환경**을 구축하는 것입니다.
+
+현재는 **Phase 1 — 데이터 인프라**가 구현된 상태입니다.
 
 ---
 
-## 🎯 Project Overview
+## 현재 구현 범위
 
-본 프로젝트는 《파이썬을 이용한 퀀트 투자 포트폴리오 만들기》를 기반으로 학습하며, 최종적으로 **AI 기반의 자동 포트폴리오 관리 및 매매 시스템** 구축을 목표로 합니다.
+### 데이터 수집 파이프라인
 
-### Core Objectives (Quantitative & Technical)
+`qseed` CLI가 `StockDataPipeline`을 실행하여 아래 흐름을 처리합니다.
 
-1. **Data Pipeline (Reliability & Scalability):**
-   - **Coverage:** KOSPI, KOSDAQ 전 종목 (2,500+) 및 미국 주요 종목 (S&P 500) 데이터 수집.
-   - **History:** 최근 10년 이상의 일별 수정 주가 및 재무 제표 데이터 확보.
-   - **Automation:** PySpark를 활용한 대용량 데이터 ETL (Extract-Transform-Load) 및 Parquet/Delta Lake 저장 구조화.
-2. **Factor Research (Statistical Rigor):**
-   - **Implementation:** 가치(P/E, P/B), 모멘텀(Relative Strength), 퀄리티(ROE, GPA) 등 10개 이상의 팩터 라이브러리화.
-   - **Validation:** 팩터별 IC(Information Coefficient), 10분위수 수익률(Decile Analysis)을 통한 통계적 유효성 검증.
-3. **Engine Development (Precision):**
-   - **Metrics:** 연평균 수익률(CAGR), 최대 낙폭(MDD), 샤프 지수(Sharpe Ratio), 소르티노 지수(Sortino Ratio) 자동 계산.
-   - **Realistic Simulation:** 거래세, 슬리피지(Slippage), 리밸런싱 주기 설정을 포함한 정밀 백테스팅 구현.
-4. **Insight to Action (Optimization):**
-   - **Strategy:** 월간 리밸런싱 기반의 멀티 팩터 모델 구축 및 포트폴리오 최적화(Mean-Variance, Risk Parity).
-   - **Execution:** 선정된 종목 리스트의 자동 생성 및 대시보드 시각화.
+```text
+StockProvider  →  YFinanceFetcher  →  DuckDBRepository  →  ParquetRepository
+(FinanceDataReader)   (yfinance)         (stocks.db)         (Parquet 백업)
+                                              ↓
+                                        GCSUploader (선택)
+```
+
+**지원 시장 (7개)**
+
+| 시장                        | 티커 접미사 |
+| --------------------------- | ----------- |
+| KOSPI, KONEX                | `.KS`       |
+| KOSDAQ                      | `.KQ`       |
+| S&P 500, NASDAQ, NYSE, AMEX | 없음        |
+
+**수집 데이터**
+
+- 일별 OHLCV (수정 주가 기준)
+- 배당금(`Dividends`), 액면분할(`Split`)
+- 시장 구분(`Market`)
+
+**동작 방식**
+
+1. `FinanceDataReader`로 시장별 종목 목록을 조회하고, 중복 티커를 제거합니다.
+2. 종목을 청크 단위로 나눠 `yfinance`에서 일괄 다운로드합니다.
+3. DuckDB `raw_stocks` 테이블에 적재하고, `(Ticker, Date)` 기준 중복을 제거합니다.
+4. 청크별 Parquet 파일을 `data/` 아래에 저장합니다.
+5. 수집 결과(성공/실패 티커, 마지막 거래일)를 `data/data_log/`에 기록합니다.
+
+**적재 모드**
+
+- `full`: 테이블을 초기화한 뒤 전체 재적재
+- `incremental`: DB의 마지막 거래일 이후 데이터만 추가 수집 (`--update-db` 또는 `--mode incremental`)
+
+### 저장 구조
+
+**DuckDB — `data/stocks.db`**
+
+```sql
+raw_stocks (
+    Date, Ticker, Market,
+    Open, High, Low, Close, Volume,
+    Dividends, Split
+)
+```
+
+**런타임 산출물 — `data/data_log/`**
+
+| 파일                      | 설명                     |
+| ------------------------- | ------------------------ |
+| `krx_list.csv`            | 수집 대상 티커·시장 목록 |
+| `completed_data_list.txt` | 수집 성공 티커           |
+| `no_data_list.txt`        | 데이터 없음/실패 티커    |
+| `last_date.txt`           | DB 내 최신 거래일        |
+| `qseed_run.log`           | 실행 로그                |
+
+### dbt 변환 레이어
+
+프로젝트 루트의 `dbt_project.yml` 설정으로 DuckDB(`data/stocks.db`)의 `raw_stocks`를 소스로 변환 모델을 생성합니다.
+
+| 모델                 | 설명                                                         |
+| -------------------- | ------------------------------------------------------------ |
+| `stg_raw_stocks`     | `raw_stocks` 스테이징                                        |
+| `count_by_markets`   | 시장별 종목 수 집계                                          |
+| `data_quality`       | 티커별 누락률, 영업일 대비 수집일, 거래량 0일·종가 결측 검사 |
+| `rpt_ticker_details` | 시장·종목별 수집 기간·행 수 요약                             |
+
+소스 테스트(`sources.yml`)로 `Date`, `Ticker`의 not-null 검증을 포함합니다.
+
+### 로컬 웹 조회 API
+
+`src/qseed/web/`에 DuckDB 검색용 HTTP 서버가 있습니다. 정적 HTML과 REST API를 함께 제공합니다.
+
+주요 엔드포인트: `/api/health`, `/api/summary`, `/api/search`, `/api/ticker`, `/api/market`
+
+### 개발 환경
+
+- **uv** 기반 의존성 관리
+- **Ruff** (lint/format), **mypy** (정적 타입 검사)
+- **pre-commit** 훅 및 GitHub Actions CI (`main` 브랜치 push/PR 시 실행)
+- **Docker Compose**로 컨테이너 개발 환경 제공
 
 ---
 
-## 🛠 Tech Stack
+## 기술 스택
 
-- **Language:** Python 3.13
-- **Distributed Processing:** [Apache Spark (PySpark)](https://spark.apache.org/docs/latest/api/python/index.html) - 대용량 금융 시계열 데이터 처리 최적화
-- **Data Transformation:** dbt (dbt-core, dbt-bigquery) - 데이터 모델링 및 파이프라인 관리
-- **Storage:** Delta Lake / DuckDB / BigQuery - 효율적인 데이터 조회 및 스키마 관리
-- **Package Manager:** [uv](https://github.com/astral-sh/uv)
-- **Analysis:** Pandas, NumPy, Scipy, Statsmodels
-- **Visualization:** Plotly (Interactive Charts), Matplotlib
-- **Data Source:** FinanceDataReader, yfinance, Tiingo, BeautifulSoup4
+| 영역            | 사용 기술                              |
+| --------------- | -------------------------------------- |
+| 언어            | Python 3.11 – 3.12                     |
+| 패키지 관리     | uv                                     |
+| 설정            | pydantic-settings (`.env` / 환경 변수) |
+| 데이터 수집     | FinanceDataReader, yfinance            |
+| 저장            | DuckDB, Parquet                        |
+| 변환            | dbt-core, dbt-duckdb                   |
+| 시각화 (준비)   | Streamlit, Plotly                      |
+| 클라우드 (선택) | Google Cloud Storage                   |
+| 품질            | Ruff, mypy, pre-commit                 |
+
+분석·백테스팅용 라이브러리(Pandas, SciPy, quantstats, pyportfolioopt 등)와 PySpark, dbt-bigquery는 의존성에 포함되어 있으나, **현재 파이프라인에서는 사용하지 않습니다.**
 
 ---
 
-## 📂 Directory Structure
+## 디렉토리 구조
 
 ```text
 Q-SEED/
 ├── src/
-│   └── qseed/                    # 메인 패키지
-│       ├── __init__.py
-│       ├── cli.py                # CLI 엔트리포인트
-│       ├── config.py             # 설정 관리 (StockConfig)
-│       │
-│       ├── providers/            # 데이터 소스 제공자
-│       │   ├── __init__.py
-│       │   └── stock_provider.py # 다중 시장 주식 목록 제공
-│       │
-│       ├── fetchers/             # 데이터 수집기
-│       │   ├── __init__.py
-│       │   └── yfinance.py       # yfinance 기반 주가 수집
-│       │
-│       ├── repositories/         # 저장소 (DB, 파일)
-│       │   ├── __init__.py
-│       │   ├── duckdb.py         # DuckDB 저장소
-│       │   └── parquet.py        # Parquet 내보내기
-│       │
-│       ├── uploaders/            # 외부 스토리지 업로더
-│       │   ├── __init__.py
-│       │   └── gcs.py            # Google Cloud Storage 업로더
-│       │
-│       ├── pipelines/            # 파이프라인 조율
-│       │   ├── __init__.py
-│       │   └── stock_pipeline.py # 주식 데이터 수집 파이프라인
-│       │
-│       └── utils/                # 유틸리티
-│           ├── __init__.py
-│           └── helpers.py        # 헬퍼 함수
-│
-├── tests/                        # 테스트 코드
-│   ├── __init__.py
-│   ├── test_providers/
-│   ├── test_fetchers/
-│   ├── test_repositories/
-│   └── test_pipelines/
-│
-├── research/                     # 연구/실험용 (Jupyter Notebooks)
-│   ├── exploration.ipynb         # 데이터 탐색 노트북
-│   ├── spark-warehouse/          # 로컬 Spark 데이터 임시 저장소
-│   └── db_test.py
-│
-├── data/                         # 데이터 출력 디렉토리
-│   ├── kor_ticker/               # 한국 주식 티커 데이터
-│   └── stocks.db                 # DuckDB 파일
-│
-├── docker-compose.yml            # Docker 환경 설정
-├── Dockerfile                    # Docker 이미지 빌드 파일
-├── pyproject.toml                # 프로젝트 의존성 및 환경 설정 (uv)
-└── README.md
+│   ├── qseed/              # CLI, 설정, 웹 서버
+│   ├── providers/          # 종목 목록 (FinanceDataReader)
+│   ├── fetchers/           # 주가 수집 (yfinance)
+│   ├── repositories/       # DuckDB, Parquet, 조회/미리보기, 대시보드
+│   ├── pipelines/          # stock_pipeline
+│   ├── uploaders/          # GCS
+│   └── utils/
+├── dbt/
+│   ├── models/             # dbt SQL 모델
+│   └── macros/
+├── dbt_project.yml         # dbt 프로젝트 설정
+├── profiles.yml            # DuckDB 연결 (로컬 설정, git 미추적)
+├── data/                   # 런타임 생성 (DB, Parquet, 로그)
+├── docker-compose.yml
+├── Dockerfile
+└── pyproject.toml
 ```
-
-```text
-┌─────────────────┐
-│     cli.py      │  ← 사용자 진입점 (qseed 명령)
-└────────┬────────┘
-         │
-         ▼
-┌──────────────────┐
-│ StockDataPipeline│  ← 전체 흐름 조율
-└────────┬─────────┘
-         │
-    ┌────┴───────┬────────────┬───────────┐
-    ▼            ▼            ▼           ▼
-┌────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐
-│Provider│ │Fetcher   │ │Repository│ │Uploader │
-│(Global)│ │(yfinance)│ │(DuckDB)  │ │ (GCS)   │
-└────────┘ └──────────┘ └──────────┘ └─────────┘
-```
-
-## 📋 Roadmap & KPIs
-
-프로젝트의 성공 여부를 측정할 수 있는 정량적 지표(KPI)와 함께 진행합니다.
-
-1. **Phase 1: Data Infrastructure (Month 1)**
-   - **Goal:** 전 종목 일별 주가 및 재무 데이터의 자동 적재 프로세스 완료.
-   - **KPI:** 데이터 누락율 0.1% 미만, 수집 속도 개선 (Spark 병렬 처리 활용).
-2. **Phase 2: Factor Library (Month 2)**
-   - **Goal:** 주요 퀀트 팩터 10개 이상 구현 및 유효성 분석 리포트 생성.
-   - **KPI:** 특정 팩터의 상위 10% 포트폴리오가 벤치마크(KOSPI) 대비 아웃퍼폼 확인.
-3. **Phase 3: Backtesting Engine (Month 3)**
-   - **Goal:** 실전 매매 제약 조건을 반영한 엔진 개발.
-   - **KPI:** 실제 과거 수익률과의 오차 최소화, 성과 리포트 PDF/HTML 자동 생성.
-4. **Phase 4: AI & Optimization (Future)**
-   - **Goal:** 머신러닝 기반 팩터 가중치 최적화 및 실전 스크리닝 연동.
-   - **KPI:** 샤프 지수 1.5 이상의 전략 개발 및 실전 투자 포트폴리오 도출.
 
 ---
 
-## 🚀 Getting Started
+## 시작하기
 
-로컬 환경 혹은 Docker를 사용하여 개발 환경을 구축할 수 있습니다.
-
-### Local (uv)
-
-`uv`를 사용하여 환경을 구축합니다.
+### 로컬 환경
 
 ```bash
-# 의존성 설치 및 가상환경 설정
+# 의존성 설치
 uv sync
 
 # pre-commit 훅 설치
@@ -153,62 +156,96 @@ uv run pre-commit install
 
 ### Docker
 
-Docker를 사용하면 Python, dbt, Google Cloud SDK가 포함된 일관된 환경을 바로 사용할 수 있습니다.
+```bash
+docker compose up -d --build
+docker compose exec q-seed bash
+```
 
-1. **이미지 빌드 및 컨테이너 실행**
-
-   ```bash
-   docker compose up -d --build
-   ```
-
-2. **컨테이너 접속**
-
-   ```bash
-   docker compose exec q-seed bash
-   ```
-
-3. **GCP 인증 (BigQuery 사용 시, 처음 한 번)**
-
-   ```bash
-   gcloud auth login
-   ```
-
-4. **dbt 실행 확인**
-   ```bash
-   uv run dbt --version
-   ```
+컨테이너 내부에서도 `uv run`으로 동일하게 명령을 실행합니다.
 
 ---
 
-## 📊 Data Pipeline (DB 구축)
+## 사용법
 
-`qseed` CLI를 사용하여 전체 주식 데이터를 수집하고 DuckDB를 구축할 수 있습니다.
-
-### 전체 데이터 수집 (Full Load)
-
-가장 간단한 방법으로 모든 지원 시장(한국/미국 7개 시장)의 전체 데이터를 구축합니다.
+### 1. 데이터 수집
 
 ```bash
-# 전체 데이터베이스 구축 (모든 종목, 최대 기간)
-uv run python -m src.qseed.cli --build-db
+# 전체 DB 구축 (모든 시장, max 기간)
+uv run qseed --build-db
+
+# 설정값을 조정해 실행 (시장당 기본 1,000종목, max 기간)
+uv run qseed --run-stock-pipeline
+
+# 수집 범위 직접 지정
+uv run qseed --run-stock-pipeline --download-period 10y --max-stocks 500
+
+# 증분 업데이트 (마지막 거래일 이후)
+uv run qseed --update-db
+
+# 데이터 저장 경로 지정
+uv run qseed --build-db --data-dir ./data
 ```
 
-세부 설정을 조정하여 실행할 수도 있습니다.
+**CLI 옵션**
+
+| 옵션                   | 설명                                    | 기본값   |
+| ---------------------- | --------------------------------------- | -------- |
+| `--build-db`           | 전 종목·max 기간 전체 적재              | —        |
+| `--update-db`          | 증분 업데이트 (모든 시장)               | —        |
+| `--run-stock-pipeline` | 파이프라인 실행                         | —        |
+| `--mode`               | `full` / `incremental`                  | `full`   |
+| `--data-dir`           | 데이터 저장 디렉토리                    | `./data` |
+| `--max-stocks`         | 시장별 최대 종목 수                     | `1000`   |
+| `--download-period`    | yfinance 기간 (`1y`, `5y`, `max` 등)    | `max`    |
+| `--chunk-size`         | 청크당 종목 수                          | `100`    |
+| `--sleep-interval`     | 청크 간 대기(초)                        | `5.0`    |
+| `--start-date`         | 수집 시작일 (`YYYY-MM-DD`, incremental) | —        |
+| `--end-date`           | 수집 종료일 (`YYYY-MM-DD`, incremental) | —        |
+
+### 2. dbt 실행
+
+파이프라인으로 `data/stocks.db`를 만든 뒤, 프로젝트 루트에서 실행합니다. `profiles.yml`에 DuckDB 경로를 설정해야 합니다.
 
 ```bash
-# 기본 설정으로 실행 (시장별 1000개 제한 등 설정값 적용)
-uv run python -m src.qseed.cli --run-stock-pipeline
-
-# 수집 기간 및 종목 수 직접 지정
-uv run python -m src.qseed.cli --run-stock-pipeline --download-period 10y --max-stocks 3000
+uv run dbt run
+uv run dbt test
 ```
 
-### 주요 옵션
+### 3. 환경 변수
 
-- `--build-db`: 전체 데이터베이스 구축 (모든 시장의 모든 종목을 `max` 기간으로 수집)
-- `--run-stock-pipeline`: 주식 데이터 수집 파이프라인 실행 여부
-- `--mode`: 실행 모드 (`full` 또는 `incremental`)
-- `--download-period`: 수집할 과거 데이터 기간 (`1y`, `5y`, `max` 등)
-- `--max-stocks`: 시장별 최대 수집 종목 수 (시스템 최대치 초과 시 자동 조정)
-- `--chunk-size`: 한 번의 요청에 포함할 티커 수
-- `--sleep-interval`: 청크 간 대기 시간 (초)
+`.env` 파일 또는 환경 변수로 설정합니다. 접두사는 `QSEED_STOCK_`, `QSEED_GCS_`입니다.
+
+```bash
+# 예시
+QSEED_STOCK_BASE_DIR=./data
+QSEED_STOCK_MAX_STOCKS=500
+QSEED_STOCK_CHUNK_SIZE=50
+QSEED_GCS_BUCKET_NAME=my-bucket   # 설정 시 Parquet GCS 업로드 활성화
+```
+
+### 4. 웹 조회 서버 (선택)
+
+DuckDB가 준비된 상태에서 실행합니다.
+
+```bash
+PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db
+```
+
+---
+
+## 로드맵
+
+| Phase                  | 목표                             | 상태        |
+| ---------------------- | -------------------------------- | ----------- |
+| 1. Data Infrastructure | 전 종목 주가 자동 적재·품질 검증 | **진행 중** |
+| 2. Factor Library      | 팩터 구현 및 IC·분위수 분석      | 예정        |
+| 3. Backtesting Engine  | CAGR, MDD, Sharpe 등 성과 지표   | 예정        |
+| 4. AI & Optimization   | ML 기반 포트폴리오 최적화        | 예정        |
+
+---
+
+## 참고
+
+- `data/`, `target/`, `logs/`, `profiles.yml`, `research/` 등 런타임·로컬 산출물은 `.gitignore`에 포함되어 있습니다.
+- GCS 업로드는 `QSEED_GCS_BUCKET_NAME`이 설정된 경우에만 full 적재 시 Parquet 파일에 대해 동작합니다.
+- Streamlit 대시보드(`src/repositories/dashboard.py`)는 dbt 모델 기반 시각화를 위한 준비 단계입니다.
