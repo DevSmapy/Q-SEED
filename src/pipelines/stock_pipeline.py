@@ -10,15 +10,15 @@ if typing.TYPE_CHECKING:
     from src.fetchers.yfinance import YFinanceFetcher
     from src.providers.stock_provider import StockProvider
     from src.qseed.config import AppConfig
-    from src.repositories.duckdb import DuckDBRepository
-    from src.repositories.parquet import ParquetRepository
+    from src.repositories.duckdb_builder import DuckDBRepository
+    from src.repositories.parquet_writer import ParquetRepository
     from src.uploaders.gcs import GCSUploader
 
 from src.fetchers.yfinance import YFinanceFetcher
 from src.providers.stock_provider import StockProvider
 from src.qseed.config import AppConfig, get_config
-from src.repositories.duckdb import DuckDBRepository
-from src.repositories.parquet import ParquetRepository
+from src.repositories.duckdb_builder import DuckDBRepository
+from src.repositories.parquet_writer import ParquetRepository
 from src.uploaders.gcs import GCSUploader
 from src.utils.helpers import (
     chunked,
