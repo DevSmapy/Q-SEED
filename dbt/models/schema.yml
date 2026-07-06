@@ -33,3 +33,9 @@ models:
         description: "데이터 수집 시작 날짜"
       - name: end_date
         description: "데이터 수집 종료 날짜"
+
+  - name: int_daily_returns
+    description: "일간·21일 선행 수익률 중간 모델"
+
+  - name: fct_price_factors
+    description: "OHLCV 기반 가격·거래량 팩터 (SQL 버전)"
