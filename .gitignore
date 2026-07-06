@@ -1,7 +1,31 @@
+# Research / local datasets
+/research/
 /research/kor_ticker/
-/research/
 /research/my_stocks.db
-/dbt/target/
-/research/
+
+# IDE
 /.idea
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+
+# Runtime data & local artifacts
+/data/
+/logs/
+/test_data/
+/target/
+*.db
+profiles.yml
+.user.yml
+
+# dbt
+/dbt/target/
 /dbt/.user.yml
+/dbt/logs/
+
+# macOS
+.DS_Store
+._*
