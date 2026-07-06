@@ -23,6 +23,15 @@ class StockConfig(BaseSettings):
     max_stocks: int = Field(default=1000, ge=1, description="시장별 최대 수집 종목 수")
     download_period: str = Field(default="max", description="yfinance 다운로드 기간")
     sleep_interval: float = Field(default=5.0, ge=0, description="청크 간 대기 시간 (초)")
+    gap_tolerance_days: int = Field(
+        default=5,
+        ge=0,
+        description="시장별 최신일 대비 공백으로 간주할 최소 지연 일수",
+    )
+    auto_repair_gaps: bool = Field(
+        default=True,
+        description="증분 업데이트 후 공백 티커 자동 재수집 여부",
+    )
 
     # 경로 설정
     base_dir: Path = Field(default=Path("./data"), description="기본 데이터 디렉토리")
@@ -75,6 +84,21 @@ class StockConfig(BaseSettings):
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
 
+class FactorConfig(BaseSettings):
+    """팩터 분석 관련 설정."""
+
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="QSEED_FACTOR_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    forward_horizon: int = Field(default=21, ge=1, description="선행 수익률 기간(거래일)")
+    min_observations: int = Field(default=30, ge=5, description="단면 IC/분위수 최소 종목 수")
+    default_factor: str = Field(default="momentum_12_1", description="기본 분석 팩터")
+
+
 class GCSConfig(BaseSettings):
     """Google Cloud Storage 설정."""
 
@@ -104,6 +128,7 @@ class AppConfig(BaseSettings):
     )
 
     stock: StockConfig = Field(default_factory=StockConfig)
+    factor: FactorConfig = Field(default_factory=FactorConfig)
     gcs: GCSConfig = Field(default_factory=GCSConfig)
 
     @classmethod
