@@ -9,6 +9,12 @@ import duckdb
 import pandas as pd
 
 
+def _format_date_value(value: object) -> str:
+    if hasattr(value, "strftime"):
+        return str(value.strftime("%Y-%m-%d"))
+    return str(value).split(" ")[0]
+
+
 class DuckDBRepository:
     """주식 데이터용 DuckDB 저장소."""
 
@@ -117,6 +123,34 @@ class DuckDBRepository:
         self.conn.execute("ALTER TABLE raw_stocks_tmp RENAME TO raw_stocks")
         self.conn.execute("CHECKPOINT")
         print("데이터베이스 내 중복 데이터 제거 완료.")
+
+    def get_max_date(self) -> str | None:
+        """raw_stocks 테이블의 최신 거래일(YYYY-MM-DD)."""
+        self.ensure_database_file()
+        res = self.conn.execute("SELECT MAX(Date) FROM raw_stocks").fetchone()
+        if not res or res[0] is None:
+            return None
+        return _format_date_value(res[0])
+
+    def get_ticker_last_dates(self, tickers: list[str]) -> dict[str, str]:
+        """티커별 DB 내 마지막 거래일(YYYY-MM-DD) 조회."""
+        if not tickers:
+            return {}
+
+        placeholders = ", ".join("?" for _ in tickers)
+        query = f"""
+            SELECT Ticker, MAX(Date) AS last_date
+            FROM raw_stocks
+            WHERE Ticker IN ({placeholders})
+            GROUP BY Ticker
+        """
+        rows = self.conn.execute(query, tickers).fetchall()
+        result: dict[str, str] = {}
+        for ticker, last_date in rows:
+            if last_date is None:
+                continue
+            result[str(ticker)] = _format_date_value(last_date)
+        return result
 
     def fetch_all(self) -> pd.DataFrame:
         """저장된 전체 데이터 조회."""
