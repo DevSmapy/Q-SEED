@@ -5,7 +5,7 @@
 한국·미국 주식 시장 데이터를 자동으로 수집하고, DuckDB에 적재한 뒤 dbt로 품질 검증까지 수행하는 퀀트 연구용 데이터 파이프라인입니다.
 장기 목표는 팩터 연구, 백테스팅, 포트폴리오 최적화로 이어지는 **자동 투자 연구 환경**을 구축하는 것입니다.
 
-현재는 **Phase 1 — 데이터 인프라**와 **Phase 2 — 팩터 라이브러리**가 완료된 상태입니다.
+현재는 **Phase 1 — 데이터 인프라**, **Phase 2 — 팩터 라이브러리**, **Phase 3 — 백테스팅 엔진**이 구현된 상태입니다.
 
 ---
 
@@ -122,6 +122,55 @@ DuckDB (raw_stocks)  →  Factor.compute()  →  IC / Quintile 분석
 | `int_daily_returns` | 일간·21일 선행 수익률        |
 | `fct_price_factors` | SQL 기반 팩터 값 (참조·검증) |
 
+### 백테스팅 엔진 (Phase 3)
+
+팩터 분위수 기반 **롱숏 / 롱온리** 전략을 시뮬레이션하고 CAGR, MDD, Sharpe 등 성과 지표를 산출합니다.
+웹 서비스 연동을 고려해 `BacktestRunConfig`·`run_id` 단위로 실행·저장·조회가 가능합니다.
+
+**전략 구성**
+
+| 항목        | 기본값        | 설명                                  |
+| ----------- | ------------- | ------------------------------------- |
+| 포지션 모드 | `long_short`  | 롱숏(Q5−Q1) 또는 `long_only`          |
+| 리밸런싱    | 21거래일      | CLI·환경 변수로 변경 가능             |
+| 가중치      | 동일가중      | 롱·숏 각 50% (롱숏), 롱 100% (롱온리) |
+| 거래비용    | 0 bps         | 리밸런싱 시 턴오버 기반 차감          |
+| 벤치마크    | 동일가중 시장 | 대상 유니버스 전 종목 동일가중        |
+
+**시뮬레이션 흐름**
+
+```text
+DuckDB (raw_stocks)  →  Factor.compute()  →  분위수 포지션 구성
+                              ↓
+                    일별 수익률 누적 (리밸런싱 주기마다 재구성)
+                              ↓
+                    quantstats 성과 지표 (CAGR, MDD, Sharpe, …)
+                              ↓
+                    backtest_* 테이블 + data/backtest/case_study_kr/{run_id}/
+```
+
+**파일 출력 구조** (시장 구분은 디렉토리가 아닌 `manifest.json`·`runs_index.json` 메타데이터로 관리)
+
+```text
+data/backtest/case_study_kr/          # 기본 출력 경로 (--backtest-output-dir로 변경 가능)
+├── runs_index.json                   # 실행 목록 인덱스 (웹·시각화 탐색용)
+└── {run_id}/                         # 예: reversal_5d_20260707_102526
+    ├── manifest.json                 # scope(시장·기간), 전략, 지표, 파일 목록
+    ├── daily_returns.parquet         # equity, drawdown, cumulative_return 포함
+    ├── positions.parquet             # 리밸런싱별 보유 종목
+    └── summary.parquet               # CAGR, MDD, Sharpe 등 요약
+```
+
+NASDAQ 등 미국 시장 실행 시에도 **동일한 디렉토리 구조**를 사용하며, `manifest.json`의 `scope.markets`에 `["NASDAQ"]` 등으로 기록됩니다.
+
+**DuckDB 테이블**
+
+| 테이블                   | 설명                                           |
+| ------------------------ | ---------------------------------------------- |
+| `backtest_daily_returns` | 일별 전략·벤치마크 수익률, equity, drawdown    |
+| `backtest_positions`     | 리밸런싱일별 보유 종목·가중치                  |
+| `backtest_summary`       | CAGR, MDD, Sharpe 등 실행 요약 (`run_id` 단위) |
+
 ### 개발 환경
 
 - **uv** 기반 의존성 관리
@@ -145,7 +194,7 @@ DuckDB (raw_stocks)  →  Factor.compute()  →  IC / Quintile 분석
 | 클라우드 (선택) | Google Cloud Storage                   |
 | 품질            | Ruff, mypy, pre-commit                 |
 
-분석·백테스팅용 라이브러리(Pandas, SciPy, quantstats, pyportfolioopt 등)와 PySpark, dbt-bigquery는 의존성에 포함되어 있으나, **현재 파이프라인에서는 사용하지 않습니다.**
+분석·백테스팅용 라이브러리(Pandas, SciPy, **quantstats**, pyportfolioopt 등)와 PySpark, dbt-bigquery는 의존성에 포함되어 있으며, **quantstats는 Phase 3 백테스트 성과 지표에 사용**합니다.
 
 ---
 
@@ -161,6 +210,7 @@ Q-SEED/
 │   ├── pipelines/          # stock_pipeline
 │   ├── factors/            # 팩터 계산 (Phase 2)
 │   ├── analysis/           # IC·분위수 분석 (Phase 2)
+│   ├── backtest/           # 백테스트 엔진 (Phase 3)
 │   ├── uploaders/          # GCS
 │   └── utils/
 ├── dbt/
@@ -329,6 +379,68 @@ QSEED_FACTOR_DEFAULT_FACTOR=momentum_12_1
 - DuckDB 테이블: `factor_values`, `factor_ic_daily`, `factor_ic_summary`, `factor_quintile_returns`, `factor_quintile_summary`
 - 파일: `data/factor_analysis/{factor}/` (Parquet, `analysis_report.json`)
 
+### 6. 백테스트
+
+팩터 IC 분석 이후, 동일한 DuckDB 데이터로 롱숏/롱온리 전략 백테스트를 실행합니다.
+
+```bash
+# 기본 팩터(reversal_5d) 롱숏 백테스트
+uv run python -m src.qseed.cli --run-backtest
+
+# 특정 팩터·시장 지정
+uv run python -m src.qseed.cli --run-backtest \
+  --factor reversal_5d \
+  --market KOSPI --market KOSDAQ
+
+# 롱온리, 리밸런싱 주기 변경
+uv run python -m src.qseed.cli --run-backtest \
+  --factor volatility_60d \
+  --long-only \
+  --rebalance-freq 42
+
+# CSV로보내기 (Plotly·Excel 연동용)
+uv run python -m src.qseed.cli --run-backtest \
+  --factor reversal_5d \
+  --export-format csv
+
+# Parquet + CSV 동시 저장
+uv run python -m src.qseed.cli --run-backtest \
+  --factor reversal_5d \
+  --export-format both
+```
+
+**CLI 옵션 (백테스트)**
+
+| 옵션                     | 설명                                        | 기본값                              |
+| ------------------------ | ------------------------------------------- | ----------------------------------- |
+| `--run-backtest`         | 팩터 백테스트 실행                          | —                                   |
+| `--factor`               | 대상 팩터                                   | `reversal_5d`                       |
+| `--market`               | 대상 시장 (반복 지정 가능)                  | 전체                                |
+| `--position-mode`        | `long_short` / `long_only`                  | `long_short`                        |
+| `--long-only`            | 롱온리 모드 (위 옵션 단축)                  | —                                   |
+| `--rebalance-freq`       | 리밸런싱 주기(거래일)                       | `21`                                |
+| `--transaction-cost-bps` | 거래비용 (bps)                              | `0`                                 |
+| `--backtest-output-dir`  | 결과 출력 경로                              | `{data_dir}/backtest/case_study_kr` |
+| `--export-format`        | 결과 파일 형식 (`parquet` / `csv` / `both`) | `parquet`                           |
+
+**환경 변수 (백테스트)**
+
+```bash
+QSEED_BACKTEST_REBALANCE_FREQ=21
+QSEED_BACKTEST_TRANSACTION_COST_BPS=0
+QSEED_BACKTEST_INITIAL_CAPITAL=100000000
+QSEED_BACKTEST_DEFAULT_FACTOR=reversal_5d
+QSEED_BACKTEST_POSITION_MODE=long_short
+QSEED_BACKTEST_OUTPUT_DIR=./data/backtest/case_study_kr
+QSEED_BACKTEST_EXPORT_FORMAT=parquet
+```
+
+**백테스트 산출물**
+
+- DuckDB 테이블: `backtest_daily_returns`, `backtest_positions`, `backtest_summary`
+- 파일: `data/backtest/case_study_kr/{run_id}/` (`manifest.json`, Parquet)
+- 실행 목록: `data/backtest/case_study_kr/runs_index.json`
+
 ### 케이스 스터디: KOSPI·KOSDAQ 팩터 IC (2026-07)
 
 실제 `stocks.db`(9,431종목, 2026-07-06 기준)에서 **KOSPI·KOSDAQ 2,778종목**을 대상으로 6개 팩터를 분석했습니다.
@@ -382,7 +494,52 @@ uv run qseed --run-factor-analysis \
 3. **저변동성(`volatility_60d`)** 은 IC가 음수이지만, 팩터 방향(낮을수록 유리) 기준 롱숏 스프레드는 양수입니다.
 4. **거래량 비율(`volume_ratio_20d`)** 은 예측력이 거의 없고, **로그 달러 거래대금(`log_dollar_volume`)** 은 소형·저유동성 종목이 이후 수익에서 우세합니다.
 
-> Phase 3(백테스팅)에서는 위 팩터 중 `reversal_5d`, `volatility_60d`를 우선 전략 후보로 검증할 수 있습니다.
+> Phase 3 백테스팅에서는 위 팩터 중 `reversal_5d`, `volatility_60d`를 우선 전략 후보로 검증했습니다.
+
+### 케이스 스터디: KOSPI·KOSDAQ 팩터 백테스트 (2026-07)
+
+Phase 2 IC 케이스 스터디와 동일한 **KOSPI·KOSDAQ** 유니버스로 롱숏 백테스트를 실행했습니다.
+
+**설정**
+
+| 항목      | 값                            |
+| --------- | ----------------------------- |
+| 대상 시장 | KOSPI, KOSDAQ                 |
+| 포지션    | 롱숏 (동일가중, 롱·숏 각 50%) |
+| 리밸런싱  | 21거래일                      |
+| 거래비용  | 0 bps                         |
+| 벤치마크  | 동일 유니버스 동일가중        |
+
+**실행**
+
+```bash
+for factor in reversal_5d volatility_60d; do
+  uv run python -m src.qseed.cli --run-backtest \
+    --factor "$factor" \
+    --market KOSPI --market KOSDAQ \
+    --data-dir "./data"
+done
+
+# 출력 경로 지정
+uv run python -m src.qseed.cli --run-backtest \
+  --factor reversal_5d \
+  --market NASDAQ \
+  --backtest-output-dir "./data/backtest/custom_runs"
+```
+
+**결과 요약** (산출물: `data/backtest/case_study_kr/backtest_summary.json`)
+
+| 팩터             | CAGR   | MDD    | Sharpe | Win rate | Total return | 해석                                              |
+| ---------------- | ------ | ------ | ------ | -------- | ------------ | ------------------------------------------------- |
+| `reversal_5d`    | +0.32% | −61.7% | +0.12  | 51%      | +8.7%        | IC 신호와 방향 일치, 절대 수익은 완만             |
+| `volatility_60d` | −3.28% | −92.1% | −0.07  | 48%      | −58.2%       | 분위수 스프레드와 달리 복리 시뮬레이션에서는 열위 |
+
+**시사점**
+
+1. **IC·분위수 분석과 백테스트는 다른 질문**에 답합니다. 전자는 단면 예측력, 후자는 실제 리밸런싱·복리 수익입니다.
+2. **`reversal_5d`** 는 양(+) Sharpe로 Phase 2 IC 결과와 방향이 일치하나, MDD가 크고 벤치마크 대비 초과수익은 없습니다.
+3. **`volatility_60d`** 는 IC 기반 분위수 스프레드는 양(+)이었으나, 동일가중 롱숏 백테스트에서는 손실이 컸습니다. 향후 비용·유니버스 필터·롱온리 등 추가 검증이 필요합니다.
+4. 웹 서비스 확장을 위해 각 실행은 `run_id`로 식별되며, `BacktestRepository.list_backtest_runs()`로 이력 조회가 가능합니다.
 
 ---
 
@@ -392,7 +549,7 @@ uv run qseed --run-factor-analysis \
 | ---------------------- | -------------------------------- | -------- |
 | 1. Data Infrastructure | 전 종목 주가 자동 적재·품질 검증 | **완료** |
 | 2. Factor Library      | 팩터 구현 및 IC·분위수 분석      | **완료** |
-| 3. Backtesting Engine  | CAGR, MDD, Sharpe 등 성과 지표   | 예정     |
+| 3. Backtesting Engine  | CAGR, MDD, Sharpe 등 성과 지표   | **완료** |
 | 4. AI & Optimization   | ML 기반 포트폴리오 최적화        | 예정     |
 
 ---

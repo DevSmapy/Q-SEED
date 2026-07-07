@@ -99,6 +99,32 @@ class FactorConfig(BaseSettings):
     default_factor: str = Field(default="momentum_12_1", description="기본 분석 팩터")
 
 
+class BacktestConfig(BaseSettings):
+    """백테스트 관련 설정."""
+
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="QSEED_BACKTEST_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    rebalance_freq: int = Field(default=21, ge=1, description="리밸런싱 주기(거래일)")
+    min_observations: int = Field(default=30, ge=5, description="리밸런싱 최소 종목 수")
+    transaction_cost_bps: float = Field(default=0.0, ge=0, description="거래비용 (bps)")
+    initial_capital: float = Field(default=100_000_000.0, gt=0, description="초기 자본")
+    default_factor: str = Field(default="reversal_5d", description="기본 백테스트 팩터")
+    position_mode: str = Field(default="long_short", description="long_short 또는 long_only")
+    output_dir: Path | None = Field(
+        default=None,
+        description="결과 출력 경로 (미지정 시 {data_dir}/backtest/case_study_kr)",
+    )
+    export_format: str = Field(
+        default="parquet",
+        description="결과 파일 형식 (parquet, csv, both)",
+    )
+
+
 class GCSConfig(BaseSettings):
     """Google Cloud Storage 설정."""
 
@@ -129,6 +155,7 @@ class AppConfig(BaseSettings):
 
     stock: StockConfig = Field(default_factory=StockConfig)
     factor: FactorConfig = Field(default_factory=FactorConfig)
+    backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     gcs: GCSConfig = Field(default_factory=GCSConfig)
 
     @classmethod
