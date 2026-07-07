@@ -174,7 +174,101 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="선행 수익률 기간(거래일, 기본값: 21)",
     )
+    parser.add_argument(
+        "--run-backtest",
+        action="store_true",
+        help="팩터 롱숏/롱온리 백테스트 실행",
+    )
+    parser.add_argument(
+        "--rebalance-freq",
+        type=int,
+        default=None,
+        help="리밸런싱 주기(거래일, 기본값: 21)",
+    )
+    parser.add_argument(
+        "--position-mode",
+        type=str,
+        default=None,
+        choices=["long_short", "long_only"],
+        help="포지션 모드 (long_short 또는 long_only)",
+    )
+    parser.add_argument(
+        "--long-only",
+        action="store_true",
+        help="롱온리 모드 (--position-mode long_only 와 동일)",
+    )
+    parser.add_argument(
+        "--transaction-cost-bps",
+        type=float,
+        default=None,
+        help="거래비용 (bps, 기본값: 0)",
+    )
+    parser.add_argument(
+        "--backtest-output-dir",
+        type=str,
+        default=None,
+        help='백테스트 결과 출력 경로 (기본값: "{data_dir}/backtest/case_study_kr")',
+    )
+    parser.add_argument(
+        "--export-format",
+        type=str,
+        default=None,
+        choices=["parquet", "csv", "both"],
+        help="백테스트 결과 파일 형식 (기본값: parquet)",
+    )
     return parser
+
+
+def run_backtest_cli(args: argparse.Namespace) -> int:
+    """백테스트 CLI 실행."""
+    from src.backtest.export import resolve_backtest_output_dir
+    from src.backtest.runner import BacktestRunConfig, BacktestRunner
+    from src.qseed.config import get_config
+    from src.repositories.backtest_repository import BacktestRepository
+
+    config = get_config()
+    if args.data_dir is not None:
+        config.stock.base_dir = Path(args.data_dir)
+
+    factor_name = args.factor or config.backtest.default_factor
+    position_mode = args.position_mode or config.backtest.position_mode
+    if args.long_only:
+        position_mode = "long_only"
+
+    configured_output = (
+        Path(args.backtest_output_dir)
+        if args.backtest_output_dir is not None
+        else config.backtest.output_dir
+    )
+    output_dir = resolve_backtest_output_dir(config.stock.base_dir, configured_output)
+    log_path = config.stock.log_dir / "qseed_run.log"
+    logger = setup_logging(log_path)
+    logger.info("백테스트 CLI 실행 시작 (출력: %s)", output_dir)
+
+    if not config.stock.db_path.exists():
+        logger.error("DuckDB 파일이 없습니다: %s", config.stock.db_path)
+        return 1
+
+    with BacktestRepository(config.stock.db_path) as repository:
+        runner = BacktestRunner(repository, output_dir=output_dir)
+        runner.run(
+            factor_name,
+            config=BacktestRunConfig(
+                markets=args.market,
+                position_mode=position_mode,  # type: ignore[arg-type]
+                rebalance_freq=args.rebalance_freq or config.backtest.rebalance_freq,
+                min_observations=config.backtest.min_observations,
+                transaction_cost_bps=(
+                    args.transaction_cost_bps
+                    if args.transaction_cost_bps is not None
+                    else config.backtest.transaction_cost_bps
+                ),
+                initial_capital=config.backtest.initial_capital,
+                export_format=args.export_format or config.backtest.export_format,  # type: ignore[arg-type]
+            ),
+        )
+    logger.info("백테스트 CLI 실행 완료")
+    return 0
 
 
 def run_factor_analysis(args: argparse.Namespace) -> int:
@@ -272,6 +366,9 @@ def main() -> int:
 
     if args.list_factors or args.run_factor_analysis:
         return run_factor_analysis(args)
+
+    if args.run_backtest:
+        return run_backtest_cli(args)
 
     if not (
         args.run_stock_pipeline
