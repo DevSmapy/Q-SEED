@@ -13,6 +13,7 @@ from src.pipelines.stock_pipeline import (
     StockDataPipeline,
     StockPipelineDependencies,
 )
+from src.utils.helpers import raise_open_file_limit
 
 
 def setup_logging(log_file: Path) -> logging.Logger:
@@ -126,6 +127,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="청크 간 대기 시간(초)",
+    )
+    parser.add_argument(
+        "--yfinance-threads",
+        action="store_true",
+        help="yfinance 멀티스레드 다운로드 활성화 (대량 청크 시 FD 부족 위험)",
     )
     parser.add_argument(
         "--start-date",
@@ -253,6 +259,9 @@ def run_stock_pipeline_cli(
         pipeline.fetcher.period = args.download_period
     if args.sleep_interval is not None:
         pipeline.config.stock.sleep_interval = args.sleep_interval
+    if args.yfinance_threads:
+        pipeline.config.stock.yfinance_threads = True
+        pipeline.fetcher.threads = True
 
     pipeline.run(
         PipelineRunOptions(
@@ -267,6 +276,7 @@ def run_stock_pipeline_cli(
 
 def main() -> int:
     """CLI 메인 함수."""
+    raise_open_file_limit()
     parser = build_parser()
     args = parser.parse_args()
 
