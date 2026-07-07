@@ -87,10 +87,16 @@ class DuckDBRepository:
         conn.register("df_to_insert", dataframe)
         try:
             conn.execute("INSERT INTO raw_stocks BY NAME SELECT * FROM df_to_insert")
-            # 즉시 커밋 효과를 위해 체크포인트 실행
-            conn.execute("CHECKPOINT")
         finally:
-            conn.unregister("df_to_insert")
+            try:
+                conn.unregister("df_to_insert")
+            except duckdb.CatalogException:
+                pass
+
+    def checkpoint(self) -> None:
+        """WAL을 메인 DB 파일로 플러시하여 열린 파일 디스크립터를 줄임."""
+        self.ensure_database_file()
+        self.conn.execute("CHECKPOINT")
 
     def deduplicate_raw_stocks(self) -> None:
         """raw_stocks 테이블의 중복 데이터를 제거 (Ticker, Date 기준).
@@ -100,6 +106,8 @@ class DuckDBRepository:
         정렬 기준을 정교화합니다.
         """
         self.ensure_database_file()
+        # 대량 청크 적재 후 WAL 정리 — FD 부족 시 커밋 실패 방지
+        self.conn.execute("CHECKPOINT")
         # DuckDB에서 중복 제거를 위한 효율적인 방법:
         # 1. 고유한 행만 선택하여 임시 테이블 생성
         # 2. 원본 테이블 교체
