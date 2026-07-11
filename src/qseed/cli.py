@@ -222,13 +222,108 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["parquet", "csv", "both"],
         help="백테스트 결과 파일 형식 (기본값: parquet)",
     )
+    parser.add_argument(
+        "--run-optimize",
+        action="store_true",
+        help="팩터 선정 + 포트폴리오 가중치 최적화 백테스트 실행",
+    )
+    parser.add_argument(
+        "--weight-method",
+        type=str,
+        default=None,
+        choices=["equal_weight", "min_volatility", "max_sharpe", "hrp"],
+        help="가중치 방법 (기본: backtest=equal_weight, optimize=min_volatility)",
+    )
+    parser.add_argument(
+        "--opt-lookback",
+        type=int,
+        default=None,
+        help="최적화 lookback 거래일 (기본값: 252)",
+    )
+    parser.add_argument(
+        "--opt-max-assets",
+        type=int,
+        default=None,
+        help="슬리브당 최적화 최대 종목 수 (기본값: 50)",
+    )
     return parser
+
+
+def _resolve_position_mode(args: argparse.Namespace, default: str) -> str:
+    position_mode = args.position_mode or default
+    if args.long_only:
+        position_mode = "long_only"
+    return position_mode
+
+
+def run_optimize_cli(args: argparse.Namespace) -> int:
+    """포트폴리오 최적화 백테스트 CLI 실행."""
+    from src.backtest.export import resolve_backtest_output_dir
+    from src.optimize.methods import WEIGHT_METHODS
+    from src.optimize.runner import OptimizeRunConfig, OptimizeRunner
+    from src.qseed.config import get_config
+    from src.repositories.backtest_repository import BacktestRepository
+
+    config = get_config()
+    if args.data_dir is not None:
+        config.stock.base_dir = Path(args.data_dir)
+
+    factor_name = args.factor or config.optimize.default_factor
+    position_mode = _resolve_position_mode(args, config.optimize.position_mode)
+    weight_method = args.weight_method or config.optimize.weight_method
+    if weight_method not in WEIGHT_METHODS:
+        logger = setup_logging(config.stock.log_dir / "qseed_run.log")
+        logger.error("지원하지 않는 weight_method: %s", weight_method)
+        return 1
+
+    configured_output = (
+        Path(args.backtest_output_dir)
+        if args.backtest_output_dir is not None
+        else config.backtest.output_dir
+    )
+    output_dir = resolve_backtest_output_dir(config.stock.base_dir, configured_output)
+    log_path = config.stock.log_dir / "qseed_run.log"
+    logger = setup_logging(log_path)
+    logger.info(
+        "최적화 CLI 실행 시작 (method=%s, 출력: %s)",
+        weight_method,
+        output_dir,
+    )
+
+    if not config.stock.db_path.exists():
+        logger.error("DuckDB 파일이 없습니다: %s", config.stock.db_path)
+        return 1
+
+    with BacktestRepository(config.stock.db_path) as repository:
+        runner = OptimizeRunner(repository, output_dir=output_dir)
+        runner.run(
+            factor_name,
+            config=OptimizeRunConfig(
+                markets=args.market,
+                position_mode=position_mode,  # type: ignore[arg-type]
+                rebalance_freq=args.rebalance_freq or config.backtest.rebalance_freq,
+                min_observations=config.backtest.min_observations,
+                transaction_cost_bps=(
+                    args.transaction_cost_bps
+                    if args.transaction_cost_bps is not None
+                    else config.backtest.transaction_cost_bps
+                ),
+                initial_capital=config.backtest.initial_capital,
+                weight_method=weight_method,  # type: ignore[arg-type]
+                opt_lookback=args.opt_lookback or config.optimize.lookback,
+                opt_max_assets=args.opt_max_assets or config.optimize.max_assets,
+                export_format=args.export_format or config.backtest.export_format,  # type: ignore[arg-type]
+            ),
+        )
+    logger.info("최적화 CLI 실행 완료")
+    return 0
 
 
 def run_backtest_cli(args: argparse.Namespace) -> int:
     """백테스트 CLI 실행."""
     from src.backtest.export import resolve_backtest_output_dir
     from src.backtest.runner import BacktestRunConfig, BacktestRunner
+    from src.optimize.methods import WEIGHT_METHODS
     from src.qseed.config import get_config
     from src.repositories.backtest_repository import BacktestRepository
 
@@ -237,9 +332,12 @@ def run_backtest_cli(args: argparse.Namespace) -> int:
         config.stock.base_dir = Path(args.data_dir)
 
     factor_name = args.factor or config.backtest.default_factor
-    position_mode = args.position_mode or config.backtest.position_mode
-    if args.long_only:
-        position_mode = "long_only"
+    position_mode = _resolve_position_mode(args, config.backtest.position_mode)
+    weight_method = args.weight_method or "equal_weight"
+    if weight_method not in WEIGHT_METHODS:
+        logger = setup_logging(config.stock.log_dir / "qseed_run.log")
+        logger.error("지원하지 않는 weight_method: %s", weight_method)
+        return 1
 
     configured_output = (
         Path(args.backtest_output_dir)
@@ -270,6 +368,9 @@ def run_backtest_cli(args: argparse.Namespace) -> int:
                     else config.backtest.transaction_cost_bps
                 ),
                 initial_capital=config.backtest.initial_capital,
+                weight_method=weight_method,  # type: ignore[arg-type]
+                opt_lookback=args.opt_lookback or config.optimize.lookback,
+                opt_max_assets=args.opt_max_assets or config.optimize.max_assets,
                 export_format=args.export_format or config.backtest.export_format,  # type: ignore[arg-type]
             ),
         )
@@ -374,10 +475,14 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.list_factors or args.run_factor_analysis:
-        return run_factor_analysis(args)
-
-    if args.run_backtest:
+    analysis_or_backtest = (
+        args.list_factors or args.run_factor_analysis or args.run_optimize or args.run_backtest
+    )
+    if analysis_or_backtest:
+        if args.list_factors or args.run_factor_analysis:
+            return run_factor_analysis(args)
+        if args.run_optimize:
+            return run_optimize_cli(args)
         return run_backtest_cli(args)
 
     if not (
@@ -407,15 +512,13 @@ def main() -> int:
 
     logger.info("Q-SEED CLI 실행 시작")
 
-    if args.check_gaps:
-        logger.info("모드: 공백 탐지 (--check-gaps)")
-        pipeline.run(PipelineRunOptions(check_gaps_only=True))
-        logger.info("Q-SEED CLI 실행 완료")
-        return 0
-
-    if args.repair_gaps:
-        logger.info("모드: 공백 복구 (--repair-gaps)")
-        pipeline.run(PipelineRunOptions(repair_gaps=True, end_date=args.end_date))
+    if args.check_gaps or args.repair_gaps:
+        if args.check_gaps:
+            logger.info("모드: 공백 탐지 (--check-gaps)")
+            pipeline.run(PipelineRunOptions(check_gaps_only=True))
+        else:
+            logger.info("모드: 공백 복구 (--repair-gaps)")
+            pipeline.run(PipelineRunOptions(repair_gaps=True, end_date=args.end_date))
         logger.info("Q-SEED CLI 실행 완료")
         return 0
 
