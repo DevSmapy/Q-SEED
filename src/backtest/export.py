@@ -184,6 +184,8 @@ def save_backtest_run(
             "run_id": payload.run_id,
             "factor_name": payload.strategy.factor_name,
             "position_mode": payload.strategy.position_mode,
+            "weight_method": payload.strategy.weight_method,
+            "opt_lookback": payload.strategy.opt_lookback,
             "markets": payload.scope.markets,
             "export_format": payload.export_format,
             "created_at": manifest["created_at"],

@@ -15,6 +15,7 @@ from src.backtest.portfolio import (
 )
 from src.backtest.strategy import BacktestStrategy
 from src.factors.registry import get_factor
+from src.optimize.optimizer import reweight_positions
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,14 @@ def run_backtest_engine(
         spec,
         rebalance_dates,
     )
+    if strategy.weight_method != "equal_weight":
+        positions = reweight_positions(
+            positions,
+            prices,
+            method=strategy.weight_method,
+            lookback=strategy.opt_lookback,
+            max_assets=strategy.opt_max_assets,
+        )
     daily_stock_returns = compute_daily_stock_returns(prices)
     strategy_returns = _simulate_strategy_returns(
         positions,

@@ -7,6 +7,7 @@ from typing import Literal
 
 from src.factors.base import FactorSpec
 from src.factors.registry import get_factor
+from src.optimize.methods import DEFAULT_LOOKBACK, DEFAULT_MAX_ASSETS, WeightMethod
 
 PositionMode = Literal["long_short", "long_only"]
 TOP_QUINTILE = 5
@@ -25,6 +26,9 @@ class BacktestStrategy:
     min_observations: int = 30
     transaction_cost_bps: float = 0.0
     initial_capital: float = 100_000_000.0
+    weight_method: WeightMethod = "equal_weight"
+    opt_lookback: int = DEFAULT_LOOKBACK
+    opt_max_assets: int = DEFAULT_MAX_ASSETS
 
     def resolved_long_quintile(self, *, higher_is_better: bool) -> int:
         if self.long_quintile is not None:
@@ -46,6 +50,9 @@ class BacktestStrategy:
             "min_observations": self.min_observations,
             "transaction_cost_bps": self.transaction_cost_bps,
             "initial_capital": self.initial_capital,
+            "weight_method": self.weight_method,
+            "opt_lookback": self.opt_lookback,
+            "opt_max_assets": self.opt_max_assets,
         }
 
 
@@ -60,6 +67,9 @@ class BacktestStrategyOverrides:
     min_observations: int = 30
     transaction_cost_bps: float = 0.0
     initial_capital: float = 100_000_000.0
+    weight_method: WeightMethod = "equal_weight"
+    opt_lookback: int = DEFAULT_LOOKBACK
+    opt_max_assets: int = DEFAULT_MAX_ASSETS
 
 
 def build_strategy_from_factor(
@@ -78,6 +88,9 @@ def build_strategy_from_factor(
         min_observations=options.min_observations,
         transaction_cost_bps=options.transaction_cost_bps,
         initial_capital=options.initial_capital,
+        weight_method=options.weight_method,
+        opt_lookback=options.opt_lookback,
+        opt_max_assets=options.opt_max_assets,
     )
 
 

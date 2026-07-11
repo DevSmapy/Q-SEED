@@ -19,6 +19,7 @@ from src.backtest.strategy import (
     build_strategy_from_factor,
 )
 from src.factors.registry import get_factor
+from src.optimize.methods import DEFAULT_LOOKBACK, DEFAULT_MAX_ASSETS, WeightMethod
 from src.repositories.backtest_repository import BacktestRepository, BacktestTables
 
 logger = logging.getLogger("qseed")
@@ -41,6 +42,9 @@ class BacktestRunConfig:
     min_observations: int = 30
     transaction_cost_bps: float = 0.0
     initial_capital: float = 100_000_000.0
+    weight_method: WeightMethod = "equal_weight"
+    opt_lookback: int = DEFAULT_LOOKBACK
+    opt_max_assets: int = DEFAULT_MAX_ASSETS
     save_to_db: bool = True
     save_to_files: bool = True
     export_format: Literal["parquet", "csv", "both"] = "parquet"
@@ -87,11 +91,19 @@ class BacktestRunner:
                 min_observations=run_config.min_observations,
                 transaction_cost_bps=run_config.transaction_cost_bps,
                 initial_capital=run_config.initial_capital,
+                weight_method=run_config.weight_method,
+                opt_lookback=run_config.opt_lookback,
+                opt_max_assets=run_config.opt_max_assets,
             ),
         )
-        run_id = _generate_run_id(factor_name)
+        run_id = _generate_run_id(factor_name, run_config.weight_method)
 
-        logger.info("백테스트 시작: %s (run_id=%s)", factor_name, run_id)
+        logger.info(
+            "백테스트 시작: %s (run_id=%s, weight_method=%s)",
+            factor_name,
+            run_id,
+            run_config.weight_method,
+        )
 
         prices = self.repository.load_prices(
             markets=run_config.markets,
@@ -176,9 +188,11 @@ class BacktestRunner:
         )
 
 
-def _generate_run_id(factor_name: str) -> str:
+def _generate_run_id(factor_name: str, weight_method: WeightMethod = "equal_weight") -> str:
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
-    return f"{factor_name}_{timestamp}"
+    if weight_method == "equal_weight":
+        return f"{factor_name}_{timestamp}"
+    return f"{factor_name}_{weight_method}_{timestamp}"
 
 
 def _markets_label(markets: list[str] | None) -> str | None:
