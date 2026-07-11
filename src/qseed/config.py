@@ -129,6 +129,30 @@ class BacktestConfig(BaseSettings):
     )
 
 
+class OptimizeConfig(BaseSettings):
+    """포트폴리오 최적화 관련 설정."""
+
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="QSEED_OPTIMIZE_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    weight_method: str = Field(
+        default="min_volatility",
+        description="equal_weight | min_volatility | max_sharpe | hrp",
+    )
+    lookback: int = Field(default=252, ge=20, description="최적화 lookback 거래일")
+    max_assets: int = Field(
+        default=50,
+        ge=2,
+        description="슬리브당 최적화 최대 종목 수 (관측치 많은 순)",
+    )
+    default_factor: str = Field(default="reversal_5d", description="기본 최적화 팩터")
+    position_mode: str = Field(default="long_short", description="long_short 또는 long_only")
+
+
 class GCSConfig(BaseSettings):
     """Google Cloud Storage 설정."""
 
@@ -160,6 +184,7 @@ class AppConfig(BaseSettings):
     stock: StockConfig = Field(default_factory=StockConfig)
     factor: FactorConfig = Field(default_factory=FactorConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
+    optimize: OptimizeConfig = Field(default_factory=OptimizeConfig)
     gcs: GCSConfig = Field(default_factory=GCSConfig)
 
     @classmethod
