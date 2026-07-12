@@ -37,11 +37,8 @@ class StockConfig(BaseSettings):
         description="증분 업데이트 후 공백 티커 자동 재수집 여부",
     )
 
-    # 경로 설정 (기본: 외부 WD_BLACK 데이터 루트)
-    base_dir: Path = Field(
-        default=Path("/Volumes/WD_BLACK/Careers/PythonProjects/Q-SEED/data"),
-        description="기본 데이터 디렉토리",
-    )
+    # 경로 설정 (로컬 절대경로는 .env의 QSEED_STOCK_BASE_DIR로 지정)
+    base_dir: Path = Field(default=Path("./data"), description="기본 데이터 디렉토리")
 
     @property
     def log_dir(self) -> Path:

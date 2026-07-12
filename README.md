@@ -366,12 +366,17 @@ uv run dbt run --select stocks
 `.env` 파일 또는 환경 변수로 설정합니다. 접두사는 `QSEED_STOCK_`, `QSEED_GCS_`입니다.
 
 ```bash
-# 기본 데이터 루트 (미설정 시 WD_BLACK 경로)
-QSEED_STOCK_BASE_DIR=/Volumes/WD_BLACK/Careers/PythonProjects/Q-SEED/data
+cp .env.example .env   # 로컬 전용; .env는 gitignore됨
+# .env 예시:
+QSEED_STOCK_BASE_DIR=./data
+# 외장 디스크 등 절대경로가 필요하면:
+# QSEED_STOCK_BASE_DIR=/path/to/your/Q-SEED/data
 QSEED_STOCK_MAX_STOCKS=500
 QSEED_STOCK_CHUNK_SIZE=50
 QSEED_GCS_BUCKET_NAME=my-bucket   # 설정 시 Parquet GCS 업로드 활성화
 ```
+
+코드 기본값은 `./data`입니다. 머신별 절대경로는 소스에 넣지 말고 `.env`에만 둡니다.
 
 ### 4. Stocks 리뷰 대시보드 (Streamlit)
 
@@ -557,12 +562,11 @@ QSEED_OPTIMIZE_POSITION_MODE=long_short
 **실행** (6개 팩터 일괄)
 
 ```bash
-DATA_DIR="/Volumes/WD_BLACK/Careers/PythonProjects/Q-SEED/data"
+# .env의 QSEED_STOCK_BASE_DIR 또는 --data-dir 사용
 for factor in momentum_12_1 momentum_6m reversal_5d volatility_60d volume_ratio_20d log_dollar_volume; do
   uv run qseed --run-factor-analysis \
     --factor "$factor" \
-    --market KOSPI --market KOSDAQ \
-    --data-dir "$DATA_DIR"
+    --market KOSPI --market KOSDAQ
 done
 ```
 
@@ -571,8 +575,7 @@ done
 ```bash
 uv run qseed --run-factor-analysis \
   --factor reversal_5d \
-  --market KOSPI --market KOSDAQ \
-  --data-dir "/Volumes/WD_BLACK/Careers/PythonProjects/Q-SEED/data"
+  --market KOSPI --market KOSDAQ
 ```
 
 **결과 요약** (산출물: `data/factor_analysis/case_study_kr/case_study_summary.json`)
