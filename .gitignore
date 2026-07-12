@@ -3,14 +3,31 @@
 /research/kor_ticker/
 /research/my_stocks.db
 
-# IDE
-/.idea
+# IDE / editor
+/.idea/
+/.junie/
+/.vscode/
+*.swp
+*.swo
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
 
 # Runtime data & local artifacts
 /data/
@@ -18,13 +35,22 @@ __pycache__/
 /test_data/
 /target/
 *.db
+*.duckdb
 profiles.yml
 .user.yml
 
 # dbt
 /dbt/target/
-/dbt/.user.yml
 /dbt/logs/
+/dbt/dbt_packages/
+/dbt/.user.yml
+dbt_packages/
+logs/
+target/
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/secrets.toml.local
 
 # macOS
 .DS_Store
