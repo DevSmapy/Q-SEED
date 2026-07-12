@@ -1,0 +1,30 @@
+version: 2
+
+sources:
+  - name: stocks
+    schema: main
+    description: "Equity OHLCV domain only. Independent of fx/macro sources."
+    tables:
+      - name: raw_stocks
+        description: "Daily adjusted OHLCV from yfinance via Q-SEED pipeline"
+        columns:
+          - name: Date
+            description: "Trading date"
+          - name: Ticker
+            description: "Yahoo-style ticker symbol"
+          - name: Market
+            description: "Listing universe label (KOSPI, NASDAQ, ...)"
+          - name: Open
+            description: "Adjusted open"
+          - name: High
+            description: "Adjusted high"
+          - name: Low
+            description: "Adjusted low"
+          - name: Close
+            description: "Adjusted close"
+          - name: Volume
+            description: "Volume"
+          - name: Dividends
+            description: "Dividend amount on the day"
+          - name: Split
+            description: "Split ratio on the day"

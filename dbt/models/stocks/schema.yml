@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: stg_stocks__raw_stocks
+    description: "Staging pass-through of raw_stocks (stocks domain only)"
+
+  - name: dim_stocks__market
+    description: "Market → country / currency dimension"
+
+  - name: rpt_stocks__overview
+    description: "Global KPI row for stocks review dashboard"
+
+  - name: rpt_stocks__coverage_by_market
+    description: "Ticker and row counts by listing market"
+
+  - name: rpt_stocks__coverage_by_country
+    description: "Ticker and row counts by derived country"
+
+  - name: rpt_stocks__freshness
+    description: "Per-market last date and lag vs global max date"
+
+  - name: rpt_stocks__history_length
+    description: "Per-ticker history length and bucket"
+
+  - name: rpt_stocks__data_quality
+    description: >
+      Per-ticker missingness vs weekday calendar (holidays inflate missing_rate_pct),
+      zero-volume and OHLC anomaly counts
+
+  - name: rpt_stocks__return_stats
+    description: "Market-stratified daily return and price/volume summary stats"
+
+  - name: int_stocks__daily_returns
+    description: "Daily and 21d forward returns (stocks domain)"
+
+  - name: fct_stocks__price_factors
+    description: "OHLCV price/volume factors SQL reference (stocks domain)"
