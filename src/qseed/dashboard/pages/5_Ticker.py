@@ -74,9 +74,9 @@ fig.update_layout(
 )
 fig.update_yaxes(title_text="Close", row=1, col=1)
 fig.update_yaxes(title_text="Volume", row=2, col=1)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 with st.expander("Recent rows"):
     tail = series.tail(30).copy()
     tail["Date"] = tail["Date"].astype(str).str[:10]
-    st.dataframe(tail, use_container_width=True, hide_index=True)
+    st.dataframe(tail, width="stretch", hide_index=True)

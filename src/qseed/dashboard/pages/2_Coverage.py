@@ -70,12 +70,12 @@ if not listing.empty and "Market" in listing.columns:
         labels={"count": "Tickers"},
     )
     fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=380)
-    st.plotly_chart(fig, use_container_width=True)
-    st.dataframe(cov.sort_values("Market"), use_container_width=True, hide_index=True)
+    st.plotly_chart(fig, width="stretch")
+    st.dataframe(cov.sort_values("Market"), width="stretch", hide_index=True)
 else:
     st.warning(f"Listing file missing or empty: `{paths.ticker_list_path}`")
     st.subheader("Loaded by market")
-    st.dataframe(by_market, use_container_width=True, hide_index=True)
+    st.dataframe(by_market, width="stretch", hide_index=True)
 
 left, right = st.columns(2)
 with left:
@@ -88,14 +88,14 @@ with left:
         )
         fig_f = px.bar(counts, x="failure_type", y="count", labels={"count": "Tickers"})
         fig_f.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=320)
-        st.plotly_chart(fig_f, use_container_width=True)
+        st.plotly_chart(fig_f, width="stretch")
 
 with right:
     st.subheader("Failed ticker sample")
     if fail_df.empty:
         st.write("—")
     else:
-        st.dataframe(fail_df.head(200), use_container_width=True, hide_index=True)
+        st.dataframe(fail_df.head(200), width="stretch", hide_index=True)
 
 st.subheader("Tickers assigned to multiple markets")
 multi = query_df(
@@ -112,4 +112,4 @@ multi = query_df(
 if multi.empty:
     st.success("No tickers appear under more than one Market in the loaded table.")
 else:
-    st.dataframe(multi, use_container_width=True, hide_index=True)
+    st.dataframe(multi, width="stretch", hide_index=True)

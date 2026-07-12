@@ -32,13 +32,13 @@ fig = px.bar(
     labels={"lag_days": "Lag (days)"},
 )
 fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=360)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 fresh_view = freshness.copy()
 fresh_view["last_date"] = fresh_view["last_date"].astype(str).str[:10]
 st.dataframe(
     fresh_view[["Market", "country", "last_date", "lag_days"]],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
 )
 
@@ -72,7 +72,7 @@ st.dataframe(
             "close_outside_hl_days",
         ]
     ],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     column_config={
         "missing_rate_pct": st.column_config.NumberColumn("Missing %", format="%.2f"),
@@ -86,6 +86,6 @@ if anom.empty:
 else:
     st.dataframe(
         anom.sort_values(["high_lt_low_days", "close_outside_hl_days"], ascending=False).head(100),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )

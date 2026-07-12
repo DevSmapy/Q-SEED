@@ -46,7 +46,7 @@ with left:
         labels={"ticker_count": "Tickers", "Market": "Market"},
     )
     fig_m.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=360)
-    st.plotly_chart(fig_m, use_container_width=True)
+    st.plotly_chart(fig_m, width="stretch")
 
 with right:
     st.subheader("Tickers by country")
@@ -59,7 +59,7 @@ with right:
         labels={"ticker_count": "Tickers", "country": "Country"},
     )
     fig_c.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=360)
-    st.plotly_chart(fig_c, use_container_width=True)
+    st.plotly_chart(fig_c, width="stretch")
 
 st.subheader("Market freshness")
 fresh_view = freshness.copy()
@@ -67,6 +67,6 @@ fresh_view["last_date"] = fresh_view["last_date"].astype(str).str[:10]
 fresh_view["global_last_date"] = fresh_view["global_last_date"].astype(str).str[:10]
 st.dataframe(
     fresh_view[["Market", "country", "last_date", "lag_days"]],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
 )

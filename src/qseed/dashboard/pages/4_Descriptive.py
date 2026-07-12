@@ -61,7 +61,7 @@ st.dataframe(
             "zero_volume_pct",
         ]
     ],
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     column_config={
         "mean_return": st.column_config.NumberColumn("Mean %", format="%.4f"),
@@ -88,7 +88,7 @@ with left:
     counts = counts.sort_values("history_bucket")
     fig_b = px.bar(counts, x="history_bucket", y="tickers", labels={"tickers": "Tickers"})
     fig_b.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=320)
-    st.plotly_chart(fig_b, use_container_width=True)
+    st.plotly_chart(fig_b, width="stretch")
 
 with right:
     st.subheader(f"Row-count distribution — {selected}")
@@ -99,7 +99,7 @@ with right:
         labels={"row_count": "Rows per ticker"},
     )
     fig_h.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=320)
-    st.plotly_chart(fig_h, use_container_width=True)
+    st.plotly_chart(fig_h, width="stretch")
 
 st.subheader("Extreme return share by market (|r| > 20%)")
 fig_e = px.bar(
@@ -110,4 +110,4 @@ fig_e = px.bar(
     labels={"extreme_return_pct": "% of days"},
 )
 fig_e.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=320)
-st.plotly_chart(fig_e, use_container_width=True)
+st.plotly_chart(fig_e, width="stretch")
