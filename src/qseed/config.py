@@ -37,7 +37,7 @@ class StockConfig(BaseSettings):
         description="증분 업데이트 후 공백 티커 자동 재수집 여부",
     )
 
-    # 경로 설정
+    # 경로 설정 (로컬 절대경로는 .env의 QSEED_STOCK_BASE_DIR로 지정)
     base_dir: Path = Field(default=Path("./data"), description="기본 데이터 디렉토리")
 
     @property
