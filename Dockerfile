@@ -28,9 +28,11 @@ WORKDIR /app
 
 COPY --chown=$USERNAME:$USERNAME pyproject.toml uv.lock ./
 
-RUN uv sync --frozen --no-editable
+RUN uv sync --frozen --no-editable --no-install-project
 
 COPY --chown=$USERNAME:$USERNAME . .
+
+RUN uv sync --frozen --no-editable
 
 USER $USERNAME
 
