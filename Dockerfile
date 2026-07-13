@@ -1,43 +1,44 @@
-# Base image with Python 3.14-slim (compatible with uv)
-FROM python:3.14-slim
+# Python 3.12 (matches .python-version and pyproject.toml)
+FROM python:3.12-slim
 
-# Define build arguments and environment variables
 ARG USERNAME=appuser
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# Set labels for better container management
 LABEL maintainer="Q-SEED Team"
 LABEL description="Q-SEED Quantitative Investment Research Platform"
-LABEL python.version="3.14"
+LABEL python.version="3.12"
 
-# Install uv package manager
+# Native extensions (duckdb, cryptography, etc.)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Create non-root user and setup working directory
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && mkdir -p /app/kor_ticker \
+    && mkdir -p /app/data /app/logs \
     && chown -R $USERNAME:$USERNAME /app
 
-# Set working directory
 WORKDIR /app
 
-# Copy dependency files (leverage Docker layer caching)
 COPY --chown=$USERNAME:$USERNAME pyproject.toml uv.lock ./
 
-# Install dependencies (system-wide without virtual environment editing)
-RUN uv sync --frozen --no-dev --no-editable
+RUN uv sync --frozen --no-editable --no-install-project
 
-# Copy project code
 COPY --chown=$USERNAME:$USERNAME . .
 
-# Switch to non-root user
+RUN uv sync --frozen --no-editable
+
 USER $USERNAME
 
-# Set Python execution path (use virtual environment created by uv)
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
+ENV DBT_PROFILES_DIR=/app
 
-# Set default command
-CMD ["python", "research/main.py"]
+CMD ["bash"]
