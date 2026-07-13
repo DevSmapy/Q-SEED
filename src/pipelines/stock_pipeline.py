@@ -18,10 +18,12 @@ from src.fetchers.yfinance import YFinanceFetcher
 from src.providers.stock_provider import StockProvider
 from src.qseed.config import AppConfig, get_config
 from src.repositories.duckdb_builder import DuckDBRepository
+from src.repositories.gap_detector import detect_gaps
 from src.repositories.parquet_writer import ParquetRepository
 from src.uploaders.gcs import GCSUploader
 from src.utils.helpers import (
     chunked,
+    cleanup_after_chunk,
     format_progress,
     format_summary,
     save_list_to_file,
@@ -40,6 +42,30 @@ class StockPipelineDependencies:
     repository: DuckDBRepository | None = None
     parquet_repository: ParquetRepository | None = None
     uploader: GCSUploader | None = None
+
+
+@dataclass(slots=True)
+class PipelineRunOptions:
+    """파이프라인 실행 옵션."""
+
+    mode: PipelineMode = "full"
+    start_date: str | None = None
+    end_date: str | None = None
+    repair_gaps: bool = False
+    check_gaps_only: bool = False
+    skip_auto_repair: bool = False
+
+
+@dataclass(slots=True)
+class FetchStoreOptions:
+    """청크 수집·저장 옵션."""
+
+    tickers: list[str]
+    ticker_to_market: dict[str, str]
+    ticker_start_dates: dict[str, str] | None = None
+    end_date: str | None = None
+    parquet_prefix: str = "stocks_inc"
+    explicit_start_date: str | None = None
 
 
 @dataclass(slots=True)
@@ -70,7 +96,10 @@ class StockDataPipeline:
 
         self.config = deps.config or get_config()
         self.provider = deps.provider or StockProvider()
-        self.fetcher = deps.fetcher or YFinanceFetcher(period=self.config.stock.download_period)
+        self.fetcher = deps.fetcher or YFinanceFetcher(
+            period=self.config.stock.download_period,
+            threads=self.config.stock.yfinance_threads,
+        )
         self.repository = deps.repository or DuckDBRepository(db_path=self.config.stock.db_path)
         self.parquet_repository = deps.parquet_repository or ParquetRepository(
             base_dir=self.config.stock.base_dir
@@ -80,135 +109,235 @@ class StockDataPipeline:
             blob_prefix=self.config.gcs.ticker_blob_prefix,
         )
 
-    def run(
-        self,
-        mode: PipelineMode = "full",
-        start_date: str | None = None,
-        end_date: str | None = None,
-    ) -> StockPipelineResult:
-        """데이터 수집 파이프라인 실행.
+    def run(self, options: PipelineRunOptions | None = None) -> StockPipelineResult:
+        """데이터 수집 파이프라인 실행."""
+        opts = options or PipelineRunOptions()
 
-        Args:
-            mode: 실행 모드
-                - "full": 최초 전체 적재
-                - "incremental": 증분 적재
-            start_date: 시작 날짜 (incremental 모드에서 사용)
-            end_date: 종료 날짜 (incremental 모드에서 사용)
+        if opts.check_gaps_only:
+            return self._run_gap_check()
 
-        Returns:
-            파이프라인 실행 결과
+        if opts.repair_gaps:
+            return self._run_gap_repair(end_date=opts.end_date)
 
-        Raises:
-            ValueError: 지원하지 않는 mode가 전달된 경우
-        """
-        if mode not in {"full", "incremental"}:
-            raise ValueError(f"지원하지 않는 실행 모드입니다: {mode}")
+        if opts.mode not in {"full", "incremental"}:
+            raise ValueError(f"지원하지 않는 실행 모드입니다: {opts.mode}")
 
-        if mode == "incremental":
-            return self._run_incremental_load(start_date=start_date, end_date=end_date)
+        if opts.mode == "incremental":
+            with self.repository as repo:
+                result = self._run_incremental_load(
+                    start_date=opts.start_date,
+                    end_date=opts.end_date,
+                    repo=repo,
+                )
+                if self.config.stock.auto_repair_gaps and not opts.skip_auto_repair:
+                    repair_result = self._run_gap_repair(end_date=opts.end_date, repo=repo)
+                    return self._merge_results(result, repair_result)
+            return result
 
         return self._run_full_load()
 
-    def _get_last_date_from_db(self) -> str | None:
-        """데이터베이스에서 가장 최신 날짜를 조회."""
-        with self.repository as repo:
+    def _get_last_date_from_db(self, repo: DuckDBRepository | None = None) -> str | None:
+        """데이터베이스에서 가장 최신 날짜를 조회 (레거시 폴백용)."""
+        if repo is not None:
             try:
-                query = "SELECT MAX(Date) FROM raw_stocks"
-                res = repo.conn.execute(query).fetchone()
-                if res and res[0]:
-                    # DuckDB TIMESTAMP는 datetime 객체로 반환될 수 있음
-                    val = res[0]
-                    if hasattr(val, "strftime"):
-                        return str(val.strftime("%Y-%m-%d"))
-                    return str(val).split(" ")[0]  # "2024-01-01 00:00:00" -> "2024-01-01"
-                return None
+                return repo.get_max_date()
             except Exception:
                 return None
 
-    def _run_incremental_load(
-        self, start_date: str | None = None, end_date: str | None = None
+        with self.repository as managed_repo:
+            try:
+                return managed_repo.get_max_date()
+            except Exception:
+                return None
+
+    def _resolve_chunk_start_date(
+        self,
+        ticker_chunk: list[str],
+        explicit_start_date: str | None,
+        repo: DuckDBRepository,
+        ticker_start_dates: dict[str, str] | None = None,
+    ) -> str | None:
+        """청크 내 티커별 마지막 날짜 중 가장 이른 날짜를 시작일로 사용."""
+        if explicit_start_date:
+            return explicit_start_date
+
+        if ticker_start_dates:
+            chunk_dates = [
+                ticker_start_dates[ticker]
+                for ticker in ticker_chunk
+                if ticker in ticker_start_dates
+            ]
+            if chunk_dates:
+                return min(chunk_dates)
+
+        last_dates = repo.get_ticker_last_dates(ticker_chunk)
+        if last_dates:
+            return min(last_dates.values())
+
+        return repo.get_max_date()
+
+    def _run_gap_check(self) -> StockPipelineResult:
+        """공백 탐지 리포트만 출력."""
+        self.config.stock.ensure_directories()
+        with self.repository as repo:
+            report = detect_gaps(repo.conn, self.config.stock.gap_tolerance_days)
+
+        print("\n=== Gap Check Report ===")
+        print(f"Tolerance: {self.config.stock.gap_tolerance_days} calendar days (per market)")
+        print(f"Lagging tickers: {report.lagging_count}")
+        if not report.market_summary.empty:
+            print("\n[Market summary]")
+            print(report.market_summary.to_string(index=False))
+        if not report.lagging_tickers.empty:
+            print("\n[Top 20 lagging tickers]")
+            print(report.lagging_tickers.head(20).to_string(index=False))
+
+        return StockPipelineResult(
+            total_attempted=0,
+            success_tickers=[],
+            failed_tickers=report.lagging_tickers["Ticker"].tolist()
+            if not report.lagging_tickers.empty
+            else [],
+            parquet_files=[],
+            ticker_list_path=self.config.stock.ticker_list_path,
+            no_data_path=self.config.stock.no_data_path,
+        )
+
+    def _run_gap_repair(
+        self,
+        end_date: str | None = None,
+        *,
+        repo: DuckDBRepository | None = None,
     ) -> StockPipelineResult:
-        """증분 적재 모드 실행."""
+        """시장별 기준일 대비 뒤처진 티커만 재수집."""
         self.config.stock.ensure_directories()
 
-        # 1. 시작 날짜 결정
-        if not start_date:
-            last_date = self._get_last_date_from_db()
-            if last_date:
-                # 다음 날부터 수집하기 위해 시작 날짜 조정 로직이 필요할 수 있으나,
-                # yfinance 'start'는 포함(inclusive)이므로 중복 제거를 믿고
-                # 그대로 사용하거나 +1일 처리
-                # 여기서는 중복 제거가 있으므로 안전하게 last_date를 그대로 사용
-                start_date = last_date
-                print(f"데이터베이스에서 찾은 마지막 날짜: {start_date}")
-            else:
-                print("데이터베이스에 기존 데이터가 없습니다. 전체 수집(full)을 권장합니다.")
+        if repo is not None:
+            return self._run_gap_repair_with_repo(repo, end_date=end_date)
 
-        print(f"증분 수집 시작: start_date={start_date}, end_date={end_date}")
+        with self.repository as managed_repo:
+            return self._run_gap_repair_with_repo(managed_repo, end_date=end_date)
 
-        # 2. 티커 목록 획득
-        max_per_market = self.config.stock.max_stocks
-        tickers_df = self.provider.get_all_tickers(max_per_market=max_per_market)
-        tickers = tickers_df["Ticker"].tolist()
-        ticker_to_market = dict(zip(tickers_df["Ticker"], tickers_df["Market"]))
+    def _run_gap_repair_with_repo(
+        self,
+        repo: DuckDBRepository,
+        *,
+        end_date: str | None = None,
+    ) -> StockPipelineResult:
+        repo.initialize()
+        report = detect_gaps(repo.conn, self.config.stock.gap_tolerance_days)
 
+        if report.lagging_count == 0:
+            print("공백 티커 없음 — 복구할 데이터가 없습니다.")
+            return StockPipelineResult(
+                total_attempted=0,
+                success_tickers=[],
+                failed_tickers=[],
+                parquet_files=[],
+                ticker_list_path=self.config.stock.ticker_list_path,
+                no_data_path=self.config.stock.no_data_path,
+            )
+
+        lagging = report.lagging_tickers
+        tickers = lagging["Ticker"].tolist()
+        ticker_to_market = dict(zip(lagging["Ticker"], lagging["Market"], strict=True))
+        ticker_start_dates = dict(
+            zip(
+                lagging["Ticker"],
+                lagging["last_date"].astype(str),
+                strict=True,
+            )
+        )
+
+        print("\n=== Gap Repair ===")
+        print(f"Re-fetching {len(tickers)} lagging tickers")
+
+        return self._fetch_and_store_tickers(
+            FetchStoreOptions(
+                tickers=tickers,
+                ticker_to_market=ticker_to_market,
+                ticker_start_dates=ticker_start_dates,
+                end_date=end_date,
+                parquet_prefix="stocks_gap",
+            ),
+            repo=repo,
+        )
+
+    def _fetch_and_store_tickers(
+        self,
+        options: FetchStoreOptions,
+        *,
+        repo: DuckDBRepository | None = None,
+    ) -> StockPipelineResult:
+        """티커 목록을 청크 단위로 수집·저장."""
+        if repo is not None:
+            return self._fetch_and_store_with_repo(options, repo)
+
+        with self.repository as managed_repo:
+            return self._fetch_and_store_with_repo(options, managed_repo)
+
+    def _fetch_and_store_with_repo(
+        self,
+        options: FetchStoreOptions,
+        repo: DuckDBRepository,
+    ) -> StockPipelineResult:
+        """활성 DuckDB 연결을 사용해 청크 수집·저장."""
         success_tickers: set[str] = set()
         attempted_tickers: list[str] = []
         parquet_files: list[Path] = []
 
-        # 3. 데이터 수집 및 저장
-        with self.repository as repo:
-            repo.initialize()  # 테이블이 없으면 생성
+        repo.initialize()
 
-            for idx, ticker_chunk in enumerate(
-                chunked(tickers, self.config.stock.chunk_size),
-                start=1,
-            ):
-                attempted_tickers.extend(ticker_chunk)
+        for idx, ticker_chunk in enumerate(
+            chunked(options.tickers, self.config.stock.chunk_size),
+            start=1,
+        ):
+            attempted_tickers.extend(ticker_chunk)
+            chunk_start = self._resolve_chunk_start_date(
+                ticker_chunk,
+                options.explicit_start_date,
+                repo,
+                options.ticker_start_dates,
+            )
 
-                # 데이터 페칭
-                fetch_result = self.fetcher.fetch(
-                    ticker_chunk,
-                    ticker_to_market=ticker_to_market,
-                    start_date=start_date,
-                    end_date=end_date,
+            fetch_result = self.fetcher.fetch(
+                ticker_chunk,
+                ticker_to_market=options.ticker_to_market,
+                start_date=chunk_start,
+                end_date=options.end_date,
+            )
+
+            if not fetch_result.dataframe.empty:
+                repo.insert_dataframe(fetch_result.dataframe)
+                success_tickers.update(fetch_result.success_tickers)
+
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                parquet_path = self.parquet_repository.save(
+                    fetch_result.dataframe,
+                    filename=f"{options.parquet_prefix}_{timestamp}_{idx:04d}.parquet",
                 )
+                parquet_files.append(parquet_path)
 
-                # DB 저장
-                if not fetch_result.dataframe.empty:
-                    repo.insert_dataframe(fetch_result.dataframe)
-                    success_tickers.update(fetch_result.success_tickers)
-
-                    # Parquet 저장 (증분용 파일명)
-                    from datetime import datetime
-
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    parquet_path = self.parquet_repository.save(
-                        fetch_result.dataframe,
-                        filename=f"stocks_inc_{timestamp}_{idx:04d}.parquet",
-                    )
-                    parquet_files.append(parquet_path)
-
-                # 진행 상황 출력
-                print(
-                    format_progress(
-                        success=len(success_tickers),
-                        failed=len(attempted_tickers) - len(success_tickers),
-                        total=len(attempted_tickers),
-                    )
+            print(
+                format_progress(
+                    success=len(success_tickers),
+                    failed=len(attempted_tickers) - len(success_tickers),
+                    total=len(attempted_tickers),
                 )
+            )
 
-                # 대기
-                if self.config.stock.sleep_interval > 0:
-                    import time
+            if self.config.stock.sleep_interval > 0:
+                import time
 
-                    time.sleep(self.config.stock.sleep_interval)
+                time.sleep(self.config.stock.sleep_interval)
 
-            # 4. 데이터베이스 내 최종 중복 제거 (증분 적재 시 필수)
-            repo.deduplicate_raw_stocks()
+            cleanup_after_chunk()
 
-        # 5. 결과 기록 및 반환
-        self._record_results(attempted_tickers, success_tickers, parquet_files)
+        repo.deduplicate_raw_stocks()
+
+        self._record_results(attempted_tickers, success_tickers, parquet_files, repo=repo)
 
         return StockPipelineResult(
             total_attempted=len(attempted_tickers),
@@ -219,11 +348,67 @@ class StockDataPipeline:
             no_data_path=self.config.stock.no_data_path,
         )
 
+    @staticmethod
+    def _merge_results(
+        primary: StockPipelineResult,
+        secondary: StockPipelineResult,
+    ) -> StockPipelineResult:
+        """증분 적재와 공백 복구 결과 병합."""
+        success = sorted(set(primary.success_tickers) | set(secondary.success_tickers))
+        attempted = primary.total_attempted + secondary.total_attempted
+        failed = sorted(set(primary.failed_tickers) | set(secondary.failed_tickers) - set(success))
+        return StockPipelineResult(
+            total_attempted=attempted,
+            success_tickers=success,
+            failed_tickers=failed,
+            parquet_files=primary.parquet_files + secondary.parquet_files,
+            ticker_list_path=primary.ticker_list_path,
+            no_data_path=primary.no_data_path,
+        )
+
+    def _run_incremental_load(
+        self,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        *,
+        repo: DuckDBRepository | None = None,
+    ) -> StockPipelineResult:
+        """증분 적재 모드 실행."""
+        self.config.stock.ensure_directories()
+
+        if not start_date:
+            last_date = self._get_last_date_from_db(repo)
+            if last_date:
+                print(f"데이터베이스 전역 최신일 (참고): {last_date}")
+                print("청크별 수집 시작일은 티커별 last_date 최솟값을 사용합니다.")
+            else:
+                print("데이터베이스에 기존 데이터가 없습니다. 전체 수집(full)을 권장합니다.")
+
+        print(f"증분 수집 시작: start_date={start_date or 'per-ticker'}, end_date={end_date}")
+
+        max_per_market = self.config.stock.max_stocks
+        tickers_df = self.provider.get_all_tickers(max_per_market=max_per_market)
+        tickers = tickers_df["Ticker"].tolist()
+        ticker_to_market = dict(zip(tickers_df["Ticker"], tickers_df["Market"], strict=True))
+
+        return self._fetch_and_store_tickers(
+            FetchStoreOptions(
+                tickers=tickers,
+                ticker_to_market=ticker_to_market,
+                end_date=end_date,
+                parquet_prefix="stocks_inc",
+                explicit_start_date=start_date,
+            ),
+            repo=repo,
+        )
+
     def _record_results(
         self,
         attempted_tickers: list[str],
         success_tickers: set[str],
         parquet_files: list[Path],
+        *,
+        repo: DuckDBRepository | None = None,
     ) -> None:
         """수집 결과를 파일에 기록."""
         failed_tickers = sorted(set(attempted_tickers) - success_tickers)
@@ -231,7 +416,7 @@ class StockDataPipeline:
         save_list_to_file(sorted(success_tickers), str(self.config.stock.completed_data_path))
 
         # 마지막 수집 날짜 기록
-        last_date_str = self._get_last_date_from_db() or "None"
+        last_date_str = self._get_last_date_from_db(repo) or "None"
         with open(self.config.stock.last_date_path, "w", encoding="utf-8") as f:
             f.write(last_date_str)
 
@@ -315,11 +500,11 @@ class StockDataPipeline:
 
                     time.sleep(self.config.stock.sleep_interval)
 
+                cleanup_after_chunk()
+
             # 4. 데이터베이스 내 최종 중복 제거
             repo.deduplicate_raw_stocks()
-
-        # 4. 결과 정리
-        self._record_results(attempted_tickers, success_tickers, parquet_files)
+            self._record_results(attempted_tickers, success_tickers, parquet_files, repo=repo)
 
         return StockPipelineResult(
             total_attempted=len(attempted_tickers),

@@ -1,34 +1,57 @@
+# Research / local datasets
+/research/
+/research/kor_ticker/
+/research/my_stocks.db
+
+# IDE / editor
+/.idea/
+/.junie/
+/.vscode/
+*.swp
+*.swo
+
 # Python
-.venv/
 __pycache__/
 *.py[cod]
 *$py.class
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
 *.egg-info/
 dist/
 build/
 
-# Runtime artifacts
-data/
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data & local artifacts
+/data/
+/logs/
+/test_data/
+/target/
+*.db
+*.duckdb
+profiles.yml
+.user.yml
+
+# dbt
+/dbt/target/
+/dbt/logs/
+/dbt/dbt_packages/
+/dbt/.user.yml
+dbt_packages/
 logs/
 target/
-dbt/target/
-dbt_packages/
-dbt/.user.yml
 
-# Local config
-.env
-profiles.yml
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/secrets.toml.local
 
-# Research / local experiments
-/research/kor_ticker/
-/research/
-/research/my_stocks.db
-
-# IDE
-/.idea
-.vscode/
-
-# OS
+# macOS
 .DS_Store
-*.swp
-*.swo
+._*

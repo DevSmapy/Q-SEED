@@ -22,9 +22,22 @@ class StockConfig(BaseSettings):
     chunk_size: int = Field(default=100, ge=1, description="한 번에 처리할 종목 수")
     max_stocks: int = Field(default=1000, ge=1, description="시장별 최대 수집 종목 수")
     download_period: str = Field(default="max", description="yfinance 다운로드 기간")
+    yfinance_threads: bool = Field(
+        default=False,
+        description="yfinance 멀티스레드 다운로드 (대량 청크 시 FD 누수 위험)",
+    )
     sleep_interval: float = Field(default=5.0, ge=0, description="청크 간 대기 시간 (초)")
+    gap_tolerance_days: int = Field(
+        default=5,
+        ge=0,
+        description="시장별 최신일 대비 공백으로 간주할 최소 지연 일수",
+    )
+    auto_repair_gaps: bool = Field(
+        default=True,
+        description="증분 업데이트 후 공백 티커 자동 재수집 여부",
+    )
 
-    # 경로 설정
+    # 경로 설정 (로컬 절대경로는 .env의 QSEED_STOCK_BASE_DIR로 지정)
     base_dir: Path = Field(default=Path("./data"), description="기본 데이터 디렉토리")
 
     @property
@@ -75,6 +88,71 @@ class StockConfig(BaseSettings):
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
 
+class FactorConfig(BaseSettings):
+    """팩터 분석 관련 설정."""
+
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="QSEED_FACTOR_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    forward_horizon: int = Field(default=21, ge=1, description="선행 수익률 기간(거래일)")
+    min_observations: int = Field(default=30, ge=5, description="단면 IC/분위수 최소 종목 수")
+    default_factor: str = Field(default="momentum_12_1", description="기본 분석 팩터")
+
+
+class BacktestConfig(BaseSettings):
+    """백테스트 관련 설정."""
+
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="QSEED_BACKTEST_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    rebalance_freq: int = Field(default=21, ge=1, description="리밸런싱 주기(거래일)")
+    min_observations: int = Field(default=30, ge=5, description="리밸런싱 최소 종목 수")
+    transaction_cost_bps: float = Field(default=0.0, ge=0, description="거래비용 (bps)")
+    initial_capital: float = Field(default=100_000_000.0, gt=0, description="초기 자본")
+    default_factor: str = Field(default="reversal_5d", description="기본 백테스트 팩터")
+    position_mode: str = Field(default="long_short", description="long_short 또는 long_only")
+    output_dir: Path | None = Field(
+        default=None,
+        description="결과 출력 경로 (미지정 시 {data_dir}/backtest/case_study_kr)",
+    )
+    export_format: str = Field(
+        default="parquet",
+        description="결과 파일 형식 (parquet, csv, both)",
+    )
+
+
+class OptimizeConfig(BaseSettings):
+    """포트폴리오 최적화 관련 설정."""
+
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="QSEED_OPTIMIZE_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    weight_method: str = Field(
+        default="min_volatility",
+        description="equal_weight | min_volatility | max_sharpe | hrp",
+    )
+    lookback: int = Field(default=252, ge=20, description="최적화 lookback 거래일")
+    max_assets: int = Field(
+        default=50,
+        ge=2,
+        description="슬리브당 최적화 최대 종목 수 (관측치 많은 순)",
+    )
+    default_factor: str = Field(default="reversal_5d", description="기본 최적화 팩터")
+    position_mode: str = Field(default="long_short", description="long_short 또는 long_only")
+
+
 class GCSConfig(BaseSettings):
     """Google Cloud Storage 설정."""
 
@@ -104,6 +182,9 @@ class AppConfig(BaseSettings):
     )
 
     stock: StockConfig = Field(default_factory=StockConfig)
+    factor: FactorConfig = Field(default_factory=FactorConfig)
+    backtest: BacktestConfig = Field(default_factory=BacktestConfig)
+    optimize: OptimizeConfig = Field(default_factory=OptimizeConfig)
     gcs: GCSConfig = Field(default_factory=GCSConfig)
 
     @classmethod

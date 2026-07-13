@@ -21,3 +21,16 @@ clean-targets:
 models:
   qseed_dbt:
     +materialized: table
+    stocks:
+      staging:
+        +materialized: view
+      intermediate:
+        +materialized: view
+        # Heavy; enable with: dbt run --select int_stocks__daily_returns
+        int_stocks__daily_returns:
+          +enabled: false
+      marts:
+        +materialized: table
+        # Heavy; enable with: dbt run --select fct_stocks__price_factors
+        fct_stocks__price_factors:
+          +enabled: false

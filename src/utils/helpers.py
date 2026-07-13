@@ -1,8 +1,15 @@
 """Q-SEED 유틸리티 함수 모듈."""
 
+from __future__ import annotations
+
+import gc
+import logging
+import resource
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TypeVar
+
+_logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -102,6 +109,26 @@ def format_summary(
         f"Failed: {failed_count}\n"
         f"Success rate: {success_rate:.2f}%"
     )
+
+
+def raise_open_file_limit(min_soft: int = 4096) -> None:
+    """프로세스의 열 수 있는 파일 수(soft limit)를 상향.
+
+    macOS 기본값(256)은 대량 청크 수집 시 Too many open files 오류를 유발할 수 있습니다.
+    """
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        target = min(max(min_soft, soft), hard)
+        if target > soft:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (target, hard))
+            _logger.info("RLIMIT_NOFILE 상향: %d -> %d (hard=%d)", soft, target, hard)
+    except (ValueError, OSError) as exc:
+        _logger.debug("RLIMIT_NOFILE 상향 실패 (무시): %s", exc)
+
+
+def cleanup_after_chunk() -> None:
+    """청크 처리 후 누적된 파일 디스크립터·메모리를 정리."""
+    gc.collect()
 
 
 def save_list_to_file(items: list[str], filepath: str) -> None:

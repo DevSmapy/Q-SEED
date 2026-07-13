@@ -8,6 +8,11 @@ __pycache__
 .mypy_cache
 .ruff_cache
 .pre-commit-config.yaml
+.ipynb_checkpoints
+*.pyc
+*.pyo
+*.pyd
+.db
 
 # Runtime artifacts
 data/
@@ -16,6 +21,7 @@ target/
 dbt/target/
 dbt_packages/
 research/
+kor_ticker/
 
 # Local config (use examples instead)
 .env
