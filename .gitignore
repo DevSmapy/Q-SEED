@@ -1,7 +1,34 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Runtime artifacts
+data/
+logs/
+target/
+dbt/target/
+dbt_packages/
+dbt/.user.yml
+
+# Local config
+.env
+profiles.yml
+
+# Research / local experiments
 /research/kor_ticker/
 /research/
 /research/my_stocks.db
-/dbt/target/
-/research/
+
+# IDE
 /.idea
-/dbt/.user.yml
+.vscode/
+
+# OS
+.DS_Store
+*.swp
+*.swo

@@ -1,0 +1,30 @@
+.git
+.github
+.venv
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.pre-commit-config.yaml
+
+# Runtime artifacts
+data/
+logs/
+target/
+dbt/target/
+dbt_packages/
+research/
+
+# Local config (use examples instead)
+.env
+profiles.yml
+dbt/.user.yml
+
+# IDE / OS
+.idea
+.vscode
+.DS_Store
+*.swp
+*.swo

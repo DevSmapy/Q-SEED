@@ -1,0 +1,10 @@
+# dbt DuckDB 연결 설정
+# 사용법: cp profiles.yml.example profiles.yml
+qseed_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: data/stocks.db
+      schema: main
+      threads: 4

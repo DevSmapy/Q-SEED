@@ -7,14 +7,23 @@ services:
     volumes:
       - .:/app
       - q-seed-venv:/app/.venv
-      # Google Cloud SDK credentials persistence
+      - q-seed-data:/app/data
       - gcloud-config:/home/appuser/.config/gcloud
+    env_file:
+      - path: .env
+        required: false
     environment:
       - UV_LINK_MODE=copy
       - CLOUDSDK_CONFIG=/home/appuser/.config/gcloud
+      - DBT_PROFILES_DIR=/app
+      - PYTHONPATH=/app/src
+    ports:
+      - "8080:8080"
     stdin_open: true
     tty: true
+    command: sleep infinity
 
 volumes:
   q-seed-venv:
+  q-seed-data:
   gcloud-config:
