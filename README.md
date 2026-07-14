@@ -276,10 +276,10 @@ Q-SEED/
 
 ### 사전 요구사항
 
-| 방식 | 필요 도구 |
-| ---- | --------- |
-| 로컬 (uv) | [uv](https://docs.astral.sh/uv/getting-started/installation/) |
-| Docker | [Docker](https://docs.docker.com/get-docker/) + Docker Compose v2 |
+| 방식      | 필요 도구                                                         |
+| --------- | ----------------------------------------------------------------- |
+| 로컬 (uv) | [uv](https://docs.astral.sh/uv/getting-started/installation/)     |
+| Docker    | [Docker](https://docs.docker.com/get-docker/) + Docker Compose v2 |
 
 Python 버전은 **3.12**를 권장합니다 (`.python-version` 참고).
 
@@ -333,10 +333,10 @@ uv run dbt run
 
 ### 설정 파일
 
-| 파일 | 설명 |
-| ---- | ---- |
+| 파일                   | 설명                                           |
+| ---------------------- | ---------------------------------------------- |
 | `profiles.yml.example` | dbt DuckDB 연결 템플릿 → `profiles.yml`로 복사 |
-| `.env.example` | 환경 변수 템플릿 → `.env`로 복사 |
+| `.env.example`         | 환경 변수 템플릿 → `.env`로 복사               |
 
 `profiles.yml`과 `.env`는 git에 포함되지 않습니다. 클론 후 예시 파일을 복사해 사용하세요.
 
