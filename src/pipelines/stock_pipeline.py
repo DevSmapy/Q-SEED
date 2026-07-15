@@ -20,7 +20,6 @@ from src.qseed.config import AppConfig, get_config
 from src.repositories.duckdb_builder import DuckDBRepository
 from src.repositories.gap_detector import detect_gaps
 from src.repositories.parquet_writer import ParquetRepository
-from src.uploaders.gcs import GCSUploader
 from src.utils.helpers import (
     chunked,
     cleanup_after_chunk,
@@ -104,10 +103,16 @@ class StockDataPipeline:
         self.parquet_repository = deps.parquet_repository or ParquetRepository(
             base_dir=self.config.stock.base_dir
         )
-        self.uploader = deps.uploader or GCSUploader(
-            bucket_name=self.config.gcs.bucket_name,
-            blob_prefix=self.config.gcs.ticker_blob_prefix,
-        )
+        if deps.uploader is not None:
+            self.uploader = deps.uploader
+        else:
+            # google.cloud은 upload 경로에서만 import (lazy)
+            from src.uploaders.gcs import GCSUploader
+
+            self.uploader = GCSUploader(
+                bucket_name=self.config.gcs.bucket_name,
+                blob_prefix=self.config.gcs.ticker_blob_prefix,
+            )
 
     def run(self, options: PipelineRunOptions | None = None) -> StockPipelineResult:
         """데이터 수집 파이프라인 실행."""

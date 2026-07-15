@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from argparse import ArgumentParser
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 
 from qseed.web.config import WebServerConfig, resolve_path
 from qseed.web.database import DuckDBSearchRepository
@@ -39,8 +40,8 @@ def build_parser() -> ArgumentParser:
     )
     parser.add_argument(
         "--static",
-        default="research",
-        help="research.html이 있는 정적 파일 디렉토리. 기본값: research",
+        default=str(Path(__file__).resolve().parent / "static"),
+        help="research.html이 있는 정적 파일 디렉토리. 기본값: src/qseed/web/static",
     )
     parser.add_argument(
         "--table",

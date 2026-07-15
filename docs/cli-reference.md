@@ -95,17 +95,21 @@ uv run dbt run --select stocks
 PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
 ```
 
-→ [data-pipeline.md](data-pipeline.md#4-stocks-리뷰-대시보드-streamlit)
+→ [data-pipeline.md](data-pipeline.md#3-stocks-리뷰-대시보드-streamlit)
 
 ---
 
 ## 5. 웹 조회 서버
 
+정적 UI 기본 경로: `src/qseed/web/static/research.html` (레포 추적).
+
 ```bash
 PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db
+# 또는
+make web
 ```
 
-→ [data-pipeline.md](data-pipeline.md#5-웹-조회-서버-선택)
+→ [data-pipeline.md](data-pipeline.md#4-웹-조회-서버-선택)
 
 ---
 

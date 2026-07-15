@@ -66,6 +66,10 @@ raw_stocks (
 | `factor_quintile_returns` | 분위수 수익률 |
 | `factor_quintile_summary` | 분위수 요약   |
 
+팩터 테이블은 `factor_name` 기준으로 **해당 팩터 행만 교체**합니다.
+다른 팩터의 이전 분석 결과는 유지됩니다. (레거시 `CREATE OR REPLACE` 스키마는
+`factor_name` 컬럼이 없으면 해당 테이블을 한 번 버리고 새 스키마로 전환합니다.)
+
 ### Phase 3·4 — 백테스트 / 최적화
 
 | 테이블                   | 설명                                           |

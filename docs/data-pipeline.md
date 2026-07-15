@@ -148,7 +148,7 @@ uv run python -m src.qseed.cli --build-db --data-dir ./data
 uv run dbt run --select stocks
 ```
 
-### 4. Stocks 리뷰 대시보드 (Streamlit)
+### 3. Stocks 리뷰 대시보드 (Streamlit)
 
 ```bash
 PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
@@ -156,9 +156,11 @@ PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
 
 dbt `rpt_stocks_*` 테이블과 `data_log/` 수집 로그를 읽어 Overview / Coverage / Freshness / Descriptive / Ticker 페이지를 제공합니다.
 
-### 5. 웹 조회 서버 (선택)
+### 4. 웹 조회 서버 (선택)
 
-DuckDB가 준비된 상태에서 실행합니다.
+DuckDB가 준비된 상태에서 실행합니다. 정적 UI는 레포에 포함된
+`src/qseed/web/static/research.html`을 기본으로 제공합니다.
+(`research/` 로컬 디렉터리는 gitignore이며, 런타임 산출물용입니다.)
 
 ```bash
 PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db

@@ -64,6 +64,14 @@ def optimize_sleeve_weights(
     if not unique_tickers:
         return {}
     if params.method == "equal_weight" or len(unique_tickers) < MIN_TICKERS_FOR_OPTIMIZE:
+        if params.method != "equal_weight":
+            logger.warning(
+                "최적화 종목 수 부족 (method=%s, n=%d < %d, as_of=%s) → equal_weight 폴백",
+                params.method,
+                len(unique_tickers),
+                MIN_TICKERS_FOR_OPTIMIZE,
+                params.as_of.date(),
+            )
         return fallback
 
     panel = build_price_panel(
@@ -85,15 +93,16 @@ def optimize_sleeve_weights(
     coverage = returns.notna().sum().sort_values(ascending=False)
     eligible = [t for t in coverage.index.astype(str).tolist() if t in unique_tickers]
     if params.max_assets > 0 and len(eligible) > params.max_assets:
-        logger.debug(
-            "슬리브 종목 %d → max_assets=%d 로 축소 (as_of=%s)",
+        logger.warning(
+            "슬리브 종목 %d → max_assets=%d 로 축소 (method=%s, as_of=%s); "
+            "선정 유니버스와 최적화 유니버스가 달라질 수 있습니다",
             len(eligible),
             params.max_assets,
+            params.method,
             params.as_of.date(),
         )
         eligible = eligible[: params.max_assets]
     returns = returns[eligible]
-
     try:
         if params.method == "hrp":
             raw = _solve_hrp(returns, eligible)
