@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Q-SEED · stocks lookup</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --text: #e7ecf1;
+      --muted: #8b9aab;
+      --accent: #3d8bfd;
+      --border: #2a3542;
+      --mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+      --sans: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(1200px 600px at 10% -10%, #1b2a3d 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.45;
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.35rem;
+    }
+    .lede {
+      color: var(--muted);
+      margin: 0 0 1.75rem;
+      max-width: 40rem;
+    }
+    form {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: 1fr auto auto;
+      align-items: end;
+      margin-bottom: 1.25rem;
+    }
+    label {
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    input, select, button {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0.65rem 0.8rem;
+    }
+    button {
+      background: var(--accent);
+      border-color: transparent;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    .panel {
+      background: color-mix(in srgb, var(--panel) 92%, black);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      overflow: auto;
+    }
+    pre {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+    .error { color: #ff8f8f; }
+    @media (max-width: 640px) {
+      form { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Q-SEED</h1>
+    <p class="lede">
+      로컬 DuckDB warehouse 조회 UI입니다. 시세는 배치로 적재된 DB만 읽으며,
+      요청 경로에서 yfinance를 호출하지 않습니다.
+    </p>
+
+    <form id="lookup-form">
+      <label>
+        Mode
+        <select id="mode" name="mode">
+          <option value="ticker">Ticker</option>
+          <option value="search">Search</option>
+          <option value="market">Market</option>
+          <option value="summary">Summary</option>
+        </select>
+      </label>
+      <label>
+        Query
+        <input id="query" name="query" placeholder="005930.KS / samsung / KOSPI" value="005930.KS" />
+      </label>
+      <button type="submit" id="submit">Fetch</button>
+    </form>
+
+    <div class="meta">
+      <span id="status">idle</span>
+      <span id="endpoint"></span>
+    </div>
+    <div class="panel">
+      <pre id="output">API 응답이 여기에 표시됩니다.</pre>
+    </div>
+  </main>
+  <script>
+    const form = document.getElementById("lookup-form");
+    const modeEl = document.getElementById("mode");
+    const queryEl = document.getElementById("query");
+    const outputEl = document.getElementById("output");
+    const statusEl = document.getElementById("status");
+    const endpointEl = document.getElementById("endpoint");
+    const submitEl = document.getElementById("submit");
+
+    function buildUrl(mode, rawQuery) {
+      const q = encodeURIComponent(rawQuery.trim());
+      switch (mode) {
+        case "ticker":
+          return `/api/ticker?ticker=${q}&limit=20`;
+        case "search":
+          return `/api/search?q=${q}&limit=50`;
+        case "market":
+          return `/api/market?market=${q}&limit=50`;
+        case "summary":
+          return "/api/summary";
+        default:
+          return "/api/health";
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const mode = modeEl.value;
+      const url = buildUrl(mode, queryEl.value || "");
+      endpointEl.textContent = url;
+      statusEl.textContent = "loading…";
+      statusEl.classList.remove("error");
+      submitEl.disabled = true;
+      try {
+        const response = await fetch(url);
+        const payload = await response.json();
+        outputEl.textContent = JSON.stringify(payload, null, 2);
+        statusEl.textContent = response.ok ? "ok" : `http ${response.status}`;
+        if (!response.ok) statusEl.classList.add("error");
+      } catch (error) {
+        outputEl.textContent = String(error);
+        statusEl.textContent = "error";
+        statusEl.classList.add("error");
+      } finally {
+        submitEl.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

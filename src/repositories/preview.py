@@ -37,13 +37,13 @@ class DuckDBPreviewRepository:
         Returns:
             미리보기 DataFrame
         """
-        query = f"""
+        query = """
         SELECT *
         FROM raw_stocks
         ORDER BY Date DESC
-        LIMIT {limit}
+        LIMIT ?
         """
-        return cast(pd.DataFrame, self.conn.execute(query).df())
+        return cast(pd.DataFrame, self.conn.execute(query, [int(limit)]).df())
 
     def preview_recent(self, limit: int = 20) -> pd.DataFrame:
         """최근 데이터 일부 미리보기.
@@ -66,14 +66,14 @@ class DuckDBPreviewRepository:
         Returns:
             티커별 데이터 DataFrame
         """
-        query = f"""
+        query = """
         SELECT *
         FROM raw_stocks
-        WHERE Ticker = '{ticker}'
+        WHERE Ticker = ?
         ORDER BY Date DESC
-        LIMIT {limit}
+        LIMIT ?
         """
-        return cast(pd.DataFrame, self.conn.execute(query).df())
+        return cast(pd.DataFrame, self.conn.execute(query, [ticker, int(limit)]).df())
 
     def preview_by_date_range(
         self,
@@ -91,14 +91,17 @@ class DuckDBPreviewRepository:
         Returns:
             날짜 범위 데이터 DataFrame
         """
-        query = f"""
+        query = """
         SELECT *
         FROM raw_stocks
-        WHERE Date BETWEEN '{start_date}' AND '{end_date}'
+        WHERE Date BETWEEN ? AND ?
         ORDER BY Date DESC
-        LIMIT {limit}
+        LIMIT ?
         """
-        return cast(pd.DataFrame, self.conn.execute(query).df())
+        return cast(
+            pd.DataFrame,
+            self.conn.execute(query, [start_date, end_date, int(limit)]).df(),
+        )
 
     def get_tickers(self) -> list[str]:
         """저장된 티커 목록 조회.

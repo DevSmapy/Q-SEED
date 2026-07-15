@@ -93,46 +93,113 @@ class FactorRepository:
         return cast(pd.DataFrame, self._repo.conn.execute(query, params).df())
 
     def save_analysis_tables(self, tables: FactorAnalysisTables) -> None:
-        """팩터 분석 결과를 DuckDB 테이블로 저장."""
+        """팩터 분석 결과를 DuckDB에 저장 (동일 factor_name 행만 교체)."""
         conn = self._repo.conn
+        factor_name = tables.factor_name
+
         values = tables.factor_values.copy()
-        values["factor_name"] = tables.factor_name
-        conn.register("factor_values_df", values)
-        conn.execute(
-            """
-            CREATE OR REPLACE TABLE factor_values AS
-            SELECT * FROM factor_values_df
-            """
+        values["factor_name"] = factor_name
+        _replace_factor_rows(
+            conn,
+            table_name="factor_values",
+            register_name="factor_values_df",
+            frame=values,
+            factor_name=factor_name,
         )
 
-        conn.register("ic_daily_df", tables.ic_daily)
-        conn.execute(
-            """
-            CREATE OR REPLACE TABLE factor_ic_daily AS
-            SELECT * FROM ic_daily_df
-            """
+        ic_daily = tables.ic_daily.copy()
+        ic_daily["factor_name"] = factor_name
+        _replace_factor_rows(
+            conn,
+            table_name="factor_ic_daily",
+            register_name="ic_daily_df",
+            frame=ic_daily,
+            factor_name=factor_name,
         )
 
-        conn.register("ic_summary_df", tables.ic_summary)
-        conn.execute(
-            """
-            CREATE OR REPLACE TABLE factor_ic_summary AS
-            SELECT * FROM ic_summary_df
-            """
+        ic_summary = tables.ic_summary.copy()
+        if "factor_name" not in ic_summary.columns:
+            ic_summary["factor_name"] = factor_name
+        _replace_factor_rows(
+            conn,
+            table_name="factor_ic_summary",
+            register_name="ic_summary_df",
+            frame=ic_summary,
+            factor_name=factor_name,
         )
 
-        conn.register("quintile_returns_df", tables.quintile_returns)
-        conn.execute(
-            """
-            CREATE OR REPLACE TABLE factor_quintile_returns AS
-            SELECT * FROM quintile_returns_df
-            """
+        quintile_returns = tables.quintile_returns.copy()
+        quintile_returns["factor_name"] = factor_name
+        _replace_factor_rows(
+            conn,
+            table_name="factor_quintile_returns",
+            register_name="quintile_returns_df",
+            frame=quintile_returns,
+            factor_name=factor_name,
         )
 
-        conn.register("quintile_summary_df", tables.quintile_summary)
-        conn.execute(
-            """
-            CREATE OR REPLACE TABLE factor_quintile_summary AS
-            SELECT * FROM quintile_summary_df
-            """
+        quintile_summary = tables.quintile_summary.copy()
+        if "factor_name" not in quintile_summary.columns:
+            quintile_summary["factor_name"] = factor_name
+        _replace_factor_rows(
+            conn,
+            table_name="factor_quintile_summary",
+            register_name="quintile_summary_df",
+            frame=quintile_summary,
+            factor_name=factor_name,
         )
+
+
+def _replace_factor_rows(
+    conn: duckdb.DuckDBPyConnection,
+    *,
+    table_name: str,
+    register_name: str,
+    frame: pd.DataFrame,
+    factor_name: str,
+) -> None:
+    """단일 factor_name 행을 교체 (백테스트 run_id 패턴과 동일)."""
+    conn.register(register_name, frame)
+    try:
+        existing = cast(
+            list[tuple[str]],
+            conn.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'main' AND table_name = ?
+                """,
+                [table_name],
+            ).fetchall(),
+        )
+        if existing:
+            columns = [
+                str(row[0])
+                for row in cast(
+                    list[tuple[object, ...]],
+                    conn.execute(f"DESCRIBE {table_name}").fetchall(),
+                )
+            ]
+            if "factor_name" not in columns:
+                # 레거시 CREATE OR REPLACE 스키마 → 한 번 버리고 다중 팩터 스키마로 전환
+                conn.execute(f"DROP TABLE {table_name}")
+                existing = []
+
+        if not existing:
+            conn.execute(
+                f"""
+                CREATE TABLE {table_name} AS
+                SELECT * FROM {register_name} WHERE 1 = 0
+                """
+            )
+
+        conn.execute(f"DELETE FROM {table_name} WHERE factor_name = ?", [factor_name])
+        if not frame.empty:
+            conn.execute(
+                f"""
+                INSERT INTO {table_name} BY NAME
+                SELECT * FROM {register_name}
+                """
+            )
+    finally:
+        conn.unregister(register_name)

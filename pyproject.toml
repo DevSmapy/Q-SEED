@@ -62,7 +62,12 @@ explicit_package_bases = true
 [dependency-groups]
 dev = [
     "pre-commit>=4.5.1",
+    "pytest>=8.0.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

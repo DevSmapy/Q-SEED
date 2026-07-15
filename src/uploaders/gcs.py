@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from google.cloud import storage
-
 
 class GCSUploader:
     """GCS에 파일을 업로드하는 업로더."""
@@ -34,9 +32,19 @@ class GCSUploader:
 
         Raises:
             ValueError: bucket_name이 설정되지 않은 경우
+            ImportError: google-cloud-storage 미설치
         """
         if self.bucket_name is None:
             raise ValueError("GCS bucket_name이 설정되지 않았습니다.")
+
+        try:
+            from google.cloud import storage
+        except ImportError as exc:
+            msg = (
+                "GCS 업로드에는 google-cloud-storage가 필요합니다. "
+                "의존성을 설치한 뒤 다시 시도하세요."
+            )
+            raise ImportError(msg) from exc
 
         source_path = Path(source_file)
 
