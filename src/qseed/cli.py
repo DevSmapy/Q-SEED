@@ -7,6 +7,7 @@ import logging
 import sys
 from pathlib import Path
 
+from src.pipelines.market_pipeline import MarketDataPipeline, MarketPipelineOptions
 from src.pipelines.stock_pipeline import (
     PipelineMode,
     PipelineRunOptions,
@@ -71,6 +72,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--run-stock-pipeline",
         action="store_true",
         help="주식 데이터 수집 파이프라인 실행",
+    )
+    parser.add_argument(
+        "--run-market-pipeline",
+        action="store_true",
+        help="시장 지표 시계열 수집 및 breadth 파생 적재",
+    )
+    parser.add_argument(
+        "--breadth-only",
+        action="store_true",
+        help="--run-market-pipeline 시 외부 시계열 수집 없이 breadth만 재계산",
     )
     parser.add_argument(
         "--build-db",
@@ -421,6 +432,27 @@ def run_factor_analysis(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_market_pipeline_cli(args: argparse.Namespace, logger: logging.Logger) -> int:
+    """시장 지표 파이프라인 CLI 실행."""
+    from src.qseed.config import get_config
+
+    config = get_config()
+    if args.data_dir is not None:
+        config.stock.base_dir = Path(args.data_dir)
+
+    pipeline = MarketDataPipeline(config=config)
+    logger.info("모드: 시장 지표 파이프라인 (--run-market-pipeline)")
+    if args.breadth_only:
+        logger.info("- breadth만 재계산 (--breadth-only)")
+    pipeline.run(
+        MarketPipelineOptions(
+            breadth_only=args.breadth_only,
+            markets=args.market,
+        )
+    )
+    return 0
+
+
 def run_stock_pipeline_cli(
     args: argparse.Namespace,
     pipeline: StockDataPipeline,
@@ -484,6 +516,19 @@ def main() -> int:
         if args.run_optimize:
             return run_optimize_cli(args)
         return run_backtest_cli(args)
+
+    if args.run_market_pipeline:
+        from src.qseed.config import get_config
+
+        config = get_config()
+        if args.data_dir is not None:
+            config.stock.base_dir = Path(args.data_dir)
+        log_path = config.stock.log_dir / "qseed_run.log"
+        logger = setup_logging(log_path)
+        logger.info("Q-SEED CLI 실행 시작")
+        code = run_market_pipeline_cli(args, logger)
+        logger.info("Q-SEED CLI 실행 완료")
+        return code
 
     if not (
         args.run_stock_pipeline

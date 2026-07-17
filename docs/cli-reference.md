@@ -40,6 +40,8 @@ QSEED_GCS_BUCKET_NAME=my-bucket   # 설정 시 Parquet GCS 업로드 활성화
 | `--repair-gaps`        | 공백 티커만 재수집                               | —        |
 | `--no-gap-repair`      | `--update-db` 후 자동 공백 복구 비활성화         | —        |
 | `--run-stock-pipeline` | 파이프라인 실행                                  | —        |
+| `--run-market-pipeline`| 시장 지표 시계열 수집 + breadth 파생              | —        |
+| `--breadth-only`       | market 파이프라인에서 breadth만 재계산           | —        |
 | `--mode`               | `full` / `incremental`                           | `full`   |
 | `--data-dir`           | 데이터 저장 디렉토리                             | `./data` |
 | `--max-stocks`         | 시장별 최대 종목 수                              | `1000`   |
