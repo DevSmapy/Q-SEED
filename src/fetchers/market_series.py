@@ -115,37 +115,51 @@ def fetch_yfinance_series(spec: MarketSeriesSpec) -> pd.DataFrame:
     return _to_series_frame(raw, series_id=spec.series_id, source="yfinance", value_column="Close")
 
 
+def _fetch_symbol_frame(symbol: str) -> pd.DataFrame:
+    """단일 심볼 Close 시계열을 Date/value 프레임으로 로드."""
+    if symbol.startswith("FRED:"):
+        raw = FinanceDataReader.DataReader(symbol)
+        if not isinstance(raw, pd.DataFrame) or raw.empty:
+            raise ValueError(f"FDR 빈 결과: {symbol}")
+        part = _normalize_index_to_date(raw)
+        value_col = _pick_value_column(part, None)
+        return pd.DataFrame(
+            {
+                "Date": part["Date"],
+                "value": pd.to_numeric(part[value_col], errors="coerce"),
+            }
+        )
+
+    raw = yf.download(
+        symbol,
+        period="max",
+        auto_adjust=True,
+        progress=False,
+        threads=False,
+    )
+    if not isinstance(raw, pd.DataFrame) or raw.empty:
+        raise ValueError(f"yfinance 빈 결과: {symbol}")
+    raw = _flatten_ohlc_columns(raw)
+    part = _normalize_index_to_date(raw)
+    close_col = _pick_value_column(part, "Close")
+    return pd.DataFrame(
+        {
+            "Date": part["Date"],
+            "value": pd.to_numeric(part[close_col], errors="coerce"),
+        }
+    )
+
+
 def fetch_yfinance_spread(spec: MarketSeriesSpec) -> pd.DataFrame:
-    """yfinance 두 심볼 Close 차이 (high - low)."""
+    """두 심볼 Close 차이 (high - low). FRED: 심볼은 FDR로 조회."""
     parts = spec.symbol.split("|")
     if len(parts) != _SPREAD_SYMBOL_PARTS:
         raise ValueError(f"yfinance_spread symbol은 'A|B' 형식이어야 함: {spec.symbol}")
 
     high_sym, low_sym = parts[0].strip(), parts[1].strip()
-    frames: list[pd.DataFrame] = []
-    for sym, label in ((high_sym, "high"), (low_sym, "low")):
-        raw = yf.download(
-            sym,
-            period="max",
-            auto_adjust=True,
-            progress=False,
-            threads=False,
-        )
-        if not isinstance(raw, pd.DataFrame) or raw.empty:
-            raise ValueError(f"yfinance 빈 결과: {sym}")
-        raw = _flatten_ohlc_columns(raw)
-        part = _normalize_index_to_date(raw)
-        close_col = _pick_value_column(part, "Close")
-        frames.append(
-            pd.DataFrame(
-                {
-                    "Date": part["Date"],
-                    label: pd.to_numeric(part[close_col], errors="coerce"),
-                }
-            )
-        )
-
-    merged = frames[0].merge(frames[1], on="Date", how="inner")
+    high = _fetch_symbol_frame(high_sym).rename(columns={"value": "high"})
+    low = _fetch_symbol_frame(low_sym).rename(columns={"value": "low"})
+    merged = high.merge(low, on="Date", how="inner")
     merged["value"] = merged["high"] - merged["low"]
     out = pd.DataFrame(
         {
@@ -155,6 +169,9 @@ def fetch_yfinance_spread(spec: MarketSeriesSpec) -> pd.DataFrame:
             "source": "yfinance",
         }
     )
+    # FRED 혼용이면 source를 더 정확히 표시
+    if high_sym.startswith("FRED:") or low_sym.startswith("FRED:"):
+        out["source"] = "fdr+yfinance"
     return out.dropna(subset=["Date", "value"]).reset_index(drop=True)
 
 

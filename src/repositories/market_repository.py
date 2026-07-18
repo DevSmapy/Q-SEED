@@ -110,7 +110,7 @@ class MarketRepository:
                 pass
 
     def deduplicate_series(self) -> None:
-        """(series_id, Date) 기준 중복 제거 — 마지막 적재 행 우선."""
+        """(series_id, Date) 기준 중복 제거 — 가장 최근 적재 행(rowid) 우선."""
         self.initialize()
         self.conn.execute("CHECKPOINT")
         self.conn.execute(
@@ -121,7 +121,7 @@ class MarketRepository:
                 SELECT *,
                        ROW_NUMBER() OVER (
                            PARTITION BY series_id, Date
-                           ORDER BY source
+                           ORDER BY rowid DESC
                        ) AS row_num
                 FROM raw_market_series
             )
@@ -133,15 +133,21 @@ class MarketRepository:
         self.conn.execute("CHECKPOINT")
 
     def replace_breadth_for_markets(self, markets: list[str], dataframe: pd.DataFrame) -> None:
-        """지정 Market의 breadth를 교체 적재."""
+        """지정 Market의 breadth를 트랜잭션으로 교체 적재."""
         self.initialize()
-        if markets:
-            placeholders = ", ".join("?" for _ in markets)
-            self.conn.execute(
-                f"DELETE FROM raw_market_breadth WHERE Market IN ({placeholders})",
-                markets,
-            )
-        self.insert_breadth(dataframe)
+        self.conn.execute("BEGIN TRANSACTION")
+        try:
+            if markets:
+                placeholders = ", ".join("?" for _ in markets)
+                self.conn.execute(
+                    f"DELETE FROM raw_market_breadth WHERE Market IN ({placeholders})",
+                    markets,
+                )
+            self.insert_breadth(dataframe)
+            self.conn.execute("COMMIT")
+        except Exception:
+            self.conn.execute("ROLLBACK")
+            raise
         self.conn.execute("CHECKPOINT")
 
     def load_stock_closes(self, markets: list[str] | None = None) -> pd.DataFrame:

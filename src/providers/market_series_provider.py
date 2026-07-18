@@ -42,8 +42,8 @@ MARKET_SERIES_SPECS: tuple[MarketSeriesSpec, ...] = (
         name="US 10Y-2Y Treasury Yield Spread",
         category="liquidity_macro",
         backend="yfinance_spread",
-        # high|low — 심볼 실패 시 파이프라인이 해당 시리즈만 스킵
-        symbol="^TNX|2YY=F",
+        # 10Y CBOE cash yield (^TNX) − FRED 2Y cash yield (Yahoo에 현금 2Y 티커 없음)
+        symbol="^TNX|FRED:DGS2",
     ),
     MarketSeriesSpec(
         series_id="kr_investor_deposit",

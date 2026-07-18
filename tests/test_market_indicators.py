@@ -80,11 +80,13 @@ def test_compute_market_breadth_basic() -> None:
 
 def test_market_repository_series_dedupe(tmp_path: Path) -> None:
     db_path = tmp_path / "stocks.db"
+    first_value = 12.0
+    latest_value = 13.0
     frame = pd.DataFrame(
         {
             "Date": pd.to_datetime(["2024-01-01", "2024-01-01"]),
             "series_id": ["vix", "vix"],
-            "value": [12.0, 13.0],
+            "value": [first_value, latest_value],
             "source": ["fdr", "fdr"],
         }
     )
@@ -95,10 +97,12 @@ def test_market_repository_series_dedupe(tmp_path: Path) -> None:
             "SELECT series_id, value FROM raw_market_series ORDER BY value"
         ).fetchall()
         assert len(rows) == 1
+        assert float(rows[0][1]) == latest_value
 
 
 def test_market_repository_replace_breadth(tmp_path: Path) -> None:
     db_path = tmp_path / "stocks.db"
+    expected_test_breadth_rows = 2
     breadth = pd.DataFrame(
         {
             "Date": pd.to_datetime(["2024-01-02", "2024-01-03"]),
@@ -119,7 +123,7 @@ def test_market_repository_replace_breadth(tmp_path: Path) -> None:
             "SELECT COUNT(*) FROM raw_market_breadth WHERE Market = 'TEST'"
         ).fetchone()
         assert count is not None
-        assert int(count[0]) == len(breadth)
+        assert int(count[0]) == expected_test_breadth_rows
 
 
 def test_series_specs_cover_phase1() -> None:
