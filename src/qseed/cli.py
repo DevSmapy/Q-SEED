@@ -512,10 +512,12 @@ def main() -> int:
     )
     if analysis_or_backtest:
         if args.list_factors or args.run_factor_analysis:
-            return run_factor_analysis(args)
-        if args.run_optimize:
-            return run_optimize_cli(args)
-        return run_backtest_cli(args)
+            exit_code = run_factor_analysis(args)
+        elif args.run_optimize:
+            exit_code = run_optimize_cli(args)
+        else:
+            exit_code = run_backtest_cli(args)
+        return exit_code
 
     if args.run_market_pipeline:
         from src.qseed.config import get_config
@@ -526,9 +528,9 @@ def main() -> int:
         log_path = config.stock.log_dir / "qseed_run.log"
         logger = setup_logging(log_path)
         logger.info("Q-SEED CLI 실행 시작")
-        code = run_market_pipeline_cli(args, logger)
+        exit_code = run_market_pipeline_cli(args, logger)
         logger.info("Q-SEED CLI 실행 완료")
-        return code
+        return exit_code
 
     if not (
         args.run_stock_pipeline

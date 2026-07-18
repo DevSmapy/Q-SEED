@@ -71,9 +71,7 @@ class MarketRepository:
         conn = self.conn
         conn.register("df_market_series", dataframe[list(required)])
         try:
-            conn.execute(
-                "INSERT INTO raw_market_series BY NAME SELECT * FROM df_market_series"
-            )
+            conn.execute("INSERT INTO raw_market_series BY NAME SELECT * FROM df_market_series")
         finally:
             try:
                 conn.unregister("df_market_series")
@@ -104,9 +102,7 @@ class MarketRepository:
         cols = list(required)
         conn.register("df_market_breadth", dataframe[cols])
         try:
-            conn.execute(
-                "INSERT INTO raw_market_breadth BY NAME SELECT * FROM df_market_breadth"
-            )
+            conn.execute("INSERT INTO raw_market_breadth BY NAME SELECT * FROM df_market_breadth")
         finally:
             try:
                 conn.unregister("df_market_breadth")

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import logging
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ContextManager
 
 from src.fetchers.market_series import fetch_all_series
 from src.pipelines.breadth import compute_market_breadth
@@ -44,7 +43,7 @@ class MarketDataPipeline:
         opts = options or MarketPipelineOptions()
         self.config.stock.ensure_directories()
 
-        repo_cm: ContextManager[MarketRepository]
+        repo_cm: AbstractContextManager[MarketRepository]
         if self._repository is None:
             repo_cm = MarketRepository(self.db_path)
         else:

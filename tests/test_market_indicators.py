@@ -119,7 +119,7 @@ def test_market_repository_replace_breadth(tmp_path: Path) -> None:
             "SELECT COUNT(*) FROM raw_market_breadth WHERE Market = 'TEST'"
         ).fetchone()
         assert count is not None
-        assert int(count[0]) == 2
+        assert int(count[0]) == len(breadth)
 
 
 def test_series_specs_cover_phase1() -> None:

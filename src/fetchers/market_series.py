@@ -5,11 +5,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import FinanceDataReader
 import pandas as pd
+import yfinance as yf
 
 from src.providers.market_series_provider import MarketSeriesSpec, get_series_specs
 
 logger = logging.getLogger("qseed")
+
+_SPREAD_SYMBOL_PARTS = 2
 
 
 def _normalize_index_to_date(dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -25,12 +29,18 @@ def _normalize_index_to_date(dataframe: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _flatten_ohlc_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """yfinance MultiIndex 컬럼을 단일 레벨로 평탄화."""
+    out = dataframe.copy()
+    if isinstance(out.columns, pd.MultiIndex):
+        out.columns = pd.Index([str(col[0]) for col in out.columns])
+    return out
+
+
 def _pick_value_column(dataframe: pd.DataFrame, hint: str | None) -> str:
     """값 컬럼 선택. hint 부분문자열 우선, 없으면 Close/첫 수치 컬럼."""
     numeric_cols = [
-        c
-        for c in dataframe.columns
-        if c != "Date" and pd.api.types.is_numeric_dtype(dataframe[c])
+        c for c in dataframe.columns if c != "Date" and pd.api.types.is_numeric_dtype(dataframe[c])
     ]
     if not numeric_cols:
         raise ValueError("수치형 값 컬럼이 없습니다")
@@ -72,14 +82,12 @@ def _to_series_frame(
 
 def fetch_fdr_series(spec: MarketSeriesSpec) -> pd.DataFrame:
     """FinanceDataReader로 시리즈 조회."""
-    import FinanceDataReader as fdr
-
     symbol = spec.symbol
     raw: Any
     if symbol.startswith("ECOS/"):
-        raw = fdr.SnapDataReader(symbol)
+        raw = FinanceDataReader.SnapDataReader(symbol)
     else:
-        raw = fdr.DataReader(symbol)
+        raw = FinanceDataReader.DataReader(symbol)
 
     if not isinstance(raw, pd.DataFrame):
         raise TypeError(f"FDR 결과가 DataFrame이 아님: {type(raw)}")
@@ -93,8 +101,6 @@ def fetch_fdr_series(spec: MarketSeriesSpec) -> pd.DataFrame:
 
 def fetch_yfinance_series(spec: MarketSeriesSpec) -> pd.DataFrame:
     """yfinance 단일 심볼 Close 조회."""
-    import yfinance as yf
-
     raw = yf.download(
         spec.symbol,
         period="max",
@@ -105,20 +111,14 @@ def fetch_yfinance_series(spec: MarketSeriesSpec) -> pd.DataFrame:
     if not isinstance(raw, pd.DataFrame) or raw.empty:
         raise ValueError(f"yfinance 빈 결과: {spec.symbol}")
 
-    if isinstance(raw.columns, pd.MultiIndex):
-        raw.columns = [str(col[0]) for col in raw.columns]
-
-    return _to_series_frame(
-        raw, series_id=spec.series_id, source="yfinance", value_column="Close"
-    )
+    raw = _flatten_ohlc_columns(raw)
+    return _to_series_frame(raw, series_id=spec.series_id, source="yfinance", value_column="Close")
 
 
 def fetch_yfinance_spread(spec: MarketSeriesSpec) -> pd.DataFrame:
     """yfinance 두 심볼 Close 차이 (high - low)."""
-    import yfinance as yf
-
     parts = spec.symbol.split("|")
-    if len(parts) != 2:
+    if len(parts) != _SPREAD_SYMBOL_PARTS:
         raise ValueError(f"yfinance_spread symbol은 'A|B' 형식이어야 함: {spec.symbol}")
 
     high_sym, low_sym = parts[0].strip(), parts[1].strip()
@@ -133,8 +133,7 @@ def fetch_yfinance_spread(spec: MarketSeriesSpec) -> pd.DataFrame:
         )
         if not isinstance(raw, pd.DataFrame) or raw.empty:
             raise ValueError(f"yfinance 빈 결과: {sym}")
-        if isinstance(raw.columns, pd.MultiIndex):
-            raw.columns = [str(col[0]) for col in raw.columns]
+        raw = _flatten_ohlc_columns(raw)
         part = _normalize_index_to_date(raw)
         close_col = _pick_value_column(part, "Close")
         frames.append(
