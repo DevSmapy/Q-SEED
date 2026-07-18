@@ -34,3 +34,6 @@ models:
         # Heavy; enable with: dbt run --select fct_stocks__price_factors
         fct_stocks__price_factors:
           +enabled: false
+    market:
+      staging:
+        +materialized: view

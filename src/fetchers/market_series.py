@@ -1,0 +1,213 @@
+"""시장 지표 외부 시계열 수집."""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+import FinanceDataReader
+import pandas as pd
+import yfinance as yf
+
+from src.providers.market_series_provider import MarketSeriesSpec, get_series_specs
+
+logger = logging.getLogger("qseed")
+
+_SPREAD_SYMBOL_PARTS = 2
+
+
+def _normalize_index_to_date(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """인덱스를 Date 컬럼으로 정규화."""
+    out = dataframe.copy()
+    if "Date" in out.columns:
+        out["Date"] = pd.to_datetime(out["Date"])
+        return out
+    out = out.reset_index()
+    date_col = out.columns[0]
+    out = out.rename(columns={date_col: "Date"})
+    out["Date"] = pd.to_datetime(out["Date"])
+    return out
+
+
+def _flatten_ohlc_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """yfinance MultiIndex 컬럼을 단일 레벨로 평탄화."""
+    out = dataframe.copy()
+    if isinstance(out.columns, pd.MultiIndex):
+        out.columns = pd.Index([str(col[0]) for col in out.columns])
+    return out
+
+
+def _pick_value_column(dataframe: pd.DataFrame, hint: str | None) -> str:
+    """값 컬럼 선택. hint 부분문자열 우선, 없으면 Close/첫 수치 컬럼."""
+    numeric_cols = [
+        c for c in dataframe.columns if c != "Date" and pd.api.types.is_numeric_dtype(dataframe[c])
+    ]
+    if not numeric_cols:
+        raise ValueError("수치형 값 컬럼이 없습니다")
+
+    if hint:
+        for col in numeric_cols:
+            if hint in str(col):
+                return str(col)
+
+    if "Close" in numeric_cols:
+        return "Close"
+    return str(numeric_cols[0])
+
+
+def _to_series_frame(
+    dataframe: pd.DataFrame,
+    *,
+    series_id: str,
+    source: str,
+    value_column: str | None = None,
+) -> pd.DataFrame:
+    """임의 DataFrame → raw_market_series 스키마."""
+    if dataframe.empty:
+        return pd.DataFrame(columns=["Date", "series_id", "value", "source"])
+
+    normalized = _normalize_index_to_date(dataframe)
+    value_col = _pick_value_column(normalized, value_column)
+    out = pd.DataFrame(
+        {
+            "Date": normalized["Date"],
+            "series_id": series_id,
+            "value": pd.to_numeric(normalized[value_col], errors="coerce"),
+            "source": source,
+        }
+    )
+    out = out.dropna(subset=["Date", "value"])
+    return out.reset_index(drop=True)
+
+
+def fetch_fdr_series(spec: MarketSeriesSpec) -> pd.DataFrame:
+    """FinanceDataReader로 시리즈 조회."""
+    symbol = spec.symbol
+    raw: Any
+    if symbol.startswith("ECOS/"):
+        raw = FinanceDataReader.SnapDataReader(symbol)
+    else:
+        raw = FinanceDataReader.DataReader(symbol)
+
+    if not isinstance(raw, pd.DataFrame):
+        raise TypeError(f"FDR 결과가 DataFrame이 아님: {type(raw)}")
+    return _to_series_frame(
+        raw,
+        series_id=spec.series_id,
+        source="fdr",
+        value_column=spec.value_column,
+    )
+
+
+def fetch_yfinance_series(spec: MarketSeriesSpec) -> pd.DataFrame:
+    """yfinance 단일 심볼 Close 조회."""
+    raw = yf.download(
+        spec.symbol,
+        period="max",
+        auto_adjust=True,
+        progress=False,
+        threads=False,
+    )
+    if not isinstance(raw, pd.DataFrame) or raw.empty:
+        raise ValueError(f"yfinance 빈 결과: {spec.symbol}")
+
+    raw = _flatten_ohlc_columns(raw)
+    return _to_series_frame(raw, series_id=spec.series_id, source="yfinance", value_column="Close")
+
+
+def _fetch_symbol_frame(symbol: str) -> pd.DataFrame:
+    """단일 심볼 Close 시계열을 Date/value 프레임으로 로드."""
+    if symbol.startswith("FRED:"):
+        raw = FinanceDataReader.DataReader(symbol)
+        if not isinstance(raw, pd.DataFrame) or raw.empty:
+            raise ValueError(f"FDR 빈 결과: {symbol}")
+        part = _normalize_index_to_date(raw)
+        value_col = _pick_value_column(part, None)
+        return pd.DataFrame(
+            {
+                "Date": part["Date"],
+                "value": pd.to_numeric(part[value_col], errors="coerce"),
+            }
+        )
+
+    raw = yf.download(
+        symbol,
+        period="max",
+        auto_adjust=True,
+        progress=False,
+        threads=False,
+    )
+    if not isinstance(raw, pd.DataFrame) or raw.empty:
+        raise ValueError(f"yfinance 빈 결과: {symbol}")
+    raw = _flatten_ohlc_columns(raw)
+    part = _normalize_index_to_date(raw)
+    close_col = _pick_value_column(part, "Close")
+    return pd.DataFrame(
+        {
+            "Date": part["Date"],
+            "value": pd.to_numeric(part[close_col], errors="coerce"),
+        }
+    )
+
+
+def fetch_yfinance_spread(spec: MarketSeriesSpec) -> pd.DataFrame:
+    """두 심볼 Close 차이 (high - low). FRED: 심볼은 FDR로 조회."""
+    parts = spec.symbol.split("|")
+    if len(parts) != _SPREAD_SYMBOL_PARTS:
+        raise ValueError(f"yfinance_spread symbol은 'A|B' 형식이어야 함: {spec.symbol}")
+
+    high_sym, low_sym = parts[0].strip(), parts[1].strip()
+    high = _fetch_symbol_frame(high_sym).rename(columns={"value": "high"})
+    low = _fetch_symbol_frame(low_sym).rename(columns={"value": "low"})
+    merged = high.merge(low, on="Date", how="inner")
+    merged["value"] = merged["high"] - merged["low"]
+    out = pd.DataFrame(
+        {
+            "Date": merged["Date"],
+            "series_id": spec.series_id,
+            "value": merged["value"],
+            "source": "yfinance",
+        }
+    )
+    # FRED 혼용이면 source를 더 정확히 표시
+    if high_sym.startswith("FRED:") or low_sym.startswith("FRED:"):
+        out["source"] = "fdr+yfinance"
+    return out.dropna(subset=["Date", "value"]).reset_index(drop=True)
+
+
+def fetch_series(spec: MarketSeriesSpec) -> pd.DataFrame:
+    """스펙에 맞는 백엔드로 시리즈 수집."""
+    if spec.backend == "fdr":
+        return fetch_fdr_series(spec)
+    if spec.backend == "yfinance":
+        return fetch_yfinance_series(spec)
+    if spec.backend == "yfinance_spread":
+        return fetch_yfinance_spread(spec)
+    raise ValueError(f"지원하지 않는 backend: {spec.backend}")
+
+
+def fetch_all_series(
+    specs: tuple[MarketSeriesSpec, ...] | None = None,
+) -> pd.DataFrame:
+    """등록 시리즈를 순회 수집. 실패한 시리즈는 로그 후 스킵."""
+    selected = specs if specs is not None else get_series_specs()
+    frames: list[pd.DataFrame] = []
+    for spec in selected:
+        try:
+            frame = fetch_series(spec)
+            if frame.empty:
+                logger.warning("시장 시리즈 빈 결과, 스킵: %s", spec.series_id)
+                continue
+            frames.append(frame)
+            logger.info(
+                "시장 시리즈 수집 완료: %s (%d rows, source=%s)",
+                spec.series_id,
+                len(frame),
+                spec.backend,
+            )
+        except Exception:
+            logger.exception("시장 시리즈 수집 실패, 스킵: %s", spec.series_id)
+
+    if not frames:
+        return pd.DataFrame(columns=["Date", "series_id", "value", "source"])
+    return pd.concat(frames, ignore_index=True)

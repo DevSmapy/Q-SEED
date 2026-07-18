@@ -52,6 +52,11 @@ raw_stocks (
     Open, High, Low, Close, Volume,
     Dividends, Split
 )
+
+-- optional market tables (same file)
+raw_market_series (Date, series_id, value, source)
+raw_market_breadth (Date, Market, advances, declines, unchanged,
+                    adr_20d, ad_line, pct_above_ma20, pct_above_ma200)
 ```
 
 **런타임 산출물 — `data/data_log/`**
@@ -140,21 +145,44 @@ uv run python -m src.qseed.cli --build-db --data-dir ./data
 
 전체 CLI 옵션·환경 변수는 [cli-reference.md](cli-reference.md#1-데이터-수집)를 참고하세요.
 
+### 1b. 시장 지표
+
+같은 DuckDB(`stocks.db`)에 `raw_market_series`·`raw_market_breadth`를 적재합니다.
+외부 시계열(VIX, DXY, 장단기 금리차, 고객예탁금)은 FDR/yfinance로 수집하고,
+breadth(ADR, AD라인, 이평 상회 비율)는 `raw_stocks`에서 파생합니다.
+
+```bash
+# 시계열 수집 + breadth 계산
+uv run qseed --run-market-pipeline
+
+# stocks 갱신 후 breadth만
+uv run qseed --run-market-pipeline --breadth-only
+
+# 특정 시장만 breadth
+uv run qseed --run-market-pipeline --breadth-only --market KOSPI --market KOSDAQ
+```
+
+실패하는 개별 시리즈는 로그 후 스킵합니다. Put/Call·Fear&Greed·신용융자는 이번 범위에 포함하지 않습니다.
+
 ### 2. dbt 실행
 
 파이프라인으로 `data/stocks.db`를 만든 뒤, 프로젝트 루트에서 실행합니다. `profiles.yml`에 DuckDB 경로를 설정해야 합니다.
 
 ```bash
 uv run dbt run --select stocks
+uv run dbt run --select market
 ```
 
-### 3. Stocks 리뷰 대시보드 (Streamlit)
+### 3. 리뷰 대시보드 (Streamlit)
 
 ```bash
 PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
 ```
 
-dbt `rpt_stocks_*` 테이블과 `data_log/` 수집 로그를 읽어 Overview / Coverage / Freshness / Descriptive / Ticker 페이지를 제공합니다.
+- **Stocks**: dbt `rpt_stocks_*`와 `data_log/` — Overview / Coverage / Freshness / Descriptive / Ticker
+- **Market**: `raw_market_*` (있으면 `stg_market_*`) — Market Series / Market Breadth
+
+`.env`의 `QSEED_STOCK_BASE_DIR`이 `stocks.db` 경로를 가리키는지 확인하세요. dbt와 Streamlit을 동시에 같은 DB에 열면 잠금이 날 수 있습니다.
 
 ### 4. 웹 조회 서버 (선택)
 
@@ -172,4 +200,4 @@ PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db
 
 - `data/`, `target/`, `logs/`, `profiles.yml`, `research/` 등 런타임·로컬 산출물은 `.gitignore`에 포함되어 있습니다.
 - GCS 업로드는 `QSEED_GCS_BUCKET_NAME`이 설정된 경우에만 full 적재 시 Parquet 파일에 대해 동작합니다.
-- Streamlit stocks 리뷰 대시보드: `PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py`
+- Streamlit 리뷰 대시보드: `PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py`

@@ -1,0 +1,39 @@
+version: 2
+
+sources:
+  - name: market
+    schema: main
+    description: "Market-level series and breadth (separate from equity OHLCV)."
+    tables:
+      - name: raw_market_series
+        description: "Long-format external market series (VIX, DXY, yield spread, KR deposits)"
+        columns:
+          - name: Date
+            description: "Observation date"
+          - name: series_id
+            description: "Series key (vix, dxy, us_t10y2y, kr_investor_deposit)"
+          - name: value
+            description: "Observed value"
+          - name: source
+            description: "Ingest backend (fdr, yfinance)"
+      - name: raw_market_breadth
+        description: "Per-market advance/decline breadth derived from raw_stocks"
+        columns:
+          - name: Date
+            description: "Trading date"
+          - name: Market
+            description: "Listing universe label"
+          - name: advances
+            description: "Count of tickers up vs prior close"
+          - name: declines
+            description: "Count of tickers down vs prior close"
+          - name: unchanged
+            description: "Count of tickers flat vs prior close"
+          - name: adr_20d
+            description: "20-day advance/decline ratio (%)"
+          - name: ad_line
+            description: "Cumulative advances minus declines"
+          - name: pct_above_ma20
+            description: "Percent of tickers above 20-day SMA"
+          - name: pct_above_ma200
+            description: "Percent of tickers above 200-day SMA"

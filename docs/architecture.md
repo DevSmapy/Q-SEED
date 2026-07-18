@@ -8,7 +8,7 @@
 Q-SEED/
 ├── src/
 │   ├── qseed/              # CLI, 설정, 웹 서버, stocks 리뷰 대시보드
-│   │   └── dashboard/      # Streamlit multipage (stocks only)
+│   │   └── dashboard/      # Streamlit multipage (stocks + market)
 │   ├── providers/          # 종목 목록 (FinanceDataReader)
 │   ├── fetchers/           # 주가 수집 (yfinance)
 │   ├── repositories/       # DuckDB, Parquet, 조회/미리보기
@@ -21,7 +21,8 @@ Q-SEED/
 │   └── utils/
 ├── dbt/
 │   ├── models/
-│   │   └── stocks/         # stocks 도메인 전용 모델 (fx/macro 독립)
+│   │   ├── stocks/         # stocks 도메인 전용 모델 (fx/macro 독립)
+│   │   └── market/         # 시장 지표 staging (series · breadth)
 │   └── macros/
 ├── dbt_project.yml         # dbt 프로젝트 설정
 ├── profiles.yml            # DuckDB 연결 (로컬 설정, git 미추적)
@@ -55,6 +56,20 @@ raw_stocks (
     Dividends, Split
 )
 ```
+
+**Market indicators (optional tables in the same file)**
+
+```sql
+raw_market_series (Date, series_id, value, source)
+raw_market_breadth (
+    Date, Market,
+    advances, declines, unchanged,
+    adr_20d, ad_line, pct_above_ma20, pct_above_ma200
+)
+```
+
+`raw_market_series`는 FDR/yfinance 외부 시계열(VIX, DXY, 금리차, 고객예탁금).
+`raw_market_breadth`는 `raw_stocks`에서 파생한 시장별 등락·이평 상회 비율입니다.
 
 ### Phase 2 — 팩터 분석
 

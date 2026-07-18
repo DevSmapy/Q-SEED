@@ -32,22 +32,24 @@ QSEED_GCS_BUCKET_NAME=my-bucket   # 설정 시 Parquet GCS 업로드 활성화
 
 ## 1. 데이터 수집
 
-| 옵션                   | 설명                                             | 기본값   |
-| ---------------------- | ------------------------------------------------ | -------- |
-| `--build-db`           | 전 종목·max 기간 전체 적재                       | —        |
-| `--update-db`          | 증분 업데이트 (티커별 last_date, 공백 자동 복구) | —        |
-| `--check-gaps`         | 시장별 공백 티커 탐지 (수집 없음)                | —        |
-| `--repair-gaps`        | 공백 티커만 재수집                               | —        |
-| `--no-gap-repair`      | `--update-db` 후 자동 공백 복구 비활성화         | —        |
-| `--run-stock-pipeline` | 파이프라인 실행                                  | —        |
-| `--mode`               | `full` / `incremental`                           | `full`   |
-| `--data-dir`           | 데이터 저장 디렉토리                             | `./data` |
-| `--max-stocks`         | 시장별 최대 종목 수                              | `1000`   |
-| `--download-period`    | yfinance 기간 (`1y`, `5y`, `max` 등)             | `max`    |
-| `--chunk-size`         | 청크당 종목 수                                   | `100`    |
-| `--sleep-interval`     | 청크 간 대기(초)                                 | `5.0`    |
-| `--start-date`         | 수집 시작일 (`YYYY-MM-DD`, incremental)          | —        |
-| `--end-date`           | 수집 종료일 (`YYYY-MM-DD`, incremental)          | —        |
+| 옵션                    | 설명                                             | 기본값   |
+| ----------------------- | ------------------------------------------------ | -------- |
+| `--build-db`            | 전 종목·max 기간 전체 적재                       | —        |
+| `--update-db`           | 증분 업데이트 (티커별 last_date, 공백 자동 복구) | —        |
+| `--check-gaps`          | 시장별 공백 티커 탐지 (수집 없음)                | —        |
+| `--repair-gaps`         | 공백 티커만 재수집                               | —        |
+| `--no-gap-repair`       | `--update-db` 후 자동 공백 복구 비활성화         | —        |
+| `--run-stock-pipeline`  | 파이프라인 실행                                  | —        |
+| `--run-market-pipeline` | 시장 지표 시계열 수집 + breadth 파생             | —        |
+| `--breadth-only`        | market 파이프라인에서 breadth만 재계산           | —        |
+| `--mode`                | `full` / `incremental`                           | `full`   |
+| `--data-dir`            | 데이터 저장 디렉토리                             | `./data` |
+| `--max-stocks`          | 시장별 최대 종목 수                              | `1000`   |
+| `--download-period`     | yfinance 기간 (`1y`, `5y`, `max` 등)             | `max`    |
+| `--chunk-size`          | 청크당 종목 수                                   | `100`    |
+| `--sleep-interval`      | 청크 간 대기(초)                                 | `5.0`    |
+| `--start-date`          | 수집 시작일 (`YYYY-MM-DD`, incremental)          | —        |
+| `--end-date`            | 수집 종료일 (`YYYY-MM-DD`, incremental)          | —        |
 
 **환경 변수 (수집·공백)**
 
@@ -95,7 +97,7 @@ uv run dbt run --select stocks
 PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
 ```
 
-→ [data-pipeline.md](data-pipeline.md#3-stocks-리뷰-대시보드-streamlit)
+→ [data-pipeline.md](data-pipeline.md#3-리뷰-대시보드-streamlit)
 
 ---
 

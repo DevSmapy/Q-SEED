@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_market__series
+    description: "Staging pass-through of raw_market_series"
+    columns:
+      - name: series_id
+        description: "Series key"
+      - name: value
+        description: "Observed value"
+  - name: stg_market__breadth
+    description: "Staging pass-through of raw_market_breadth"
+    columns:
+      - name: Market
+        description: "Listing universe"
+      - name: adr_20d
+        description: "20-day ADR (%)"
