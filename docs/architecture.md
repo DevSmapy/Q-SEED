@@ -8,7 +8,7 @@
 Q-SEED/
 ├── src/
 │   ├── qseed/              # CLI, 설정, 웹 서버, stocks 리뷰 대시보드
-│   │   └── dashboard/      # Streamlit multipage (stocks only)
+│   │   └── dashboard/      # Streamlit multipage (stocks + market)
 │   ├── providers/          # 종목 목록 (FinanceDataReader)
 │   ├── fetchers/           # 주가 수집 (yfinance)
 │   ├── repositories/       # DuckDB, Parquet, 조회/미리보기

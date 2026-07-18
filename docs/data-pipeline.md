@@ -173,13 +173,16 @@ uv run dbt run --select stocks
 uv run dbt run --select market
 ```
 
-### 3. Stocks 리뷰 대시보드 (Streamlit)
+### 3. 리뷰 대시보드 (Streamlit)
 
 ```bash
 PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
 ```
 
-dbt `rpt_stocks_*` 테이블과 `data_log/` 수집 로그를 읽어 Overview / Coverage / Freshness / Descriptive / Ticker 페이지를 제공합니다.
+- **Stocks**: dbt `rpt_stocks_*`와 `data_log/` — Overview / Coverage / Freshness / Descriptive / Ticker
+- **Market**: `raw_market_*` (있으면 `stg_market_*`) — Market Series / Market Breadth
+
+`.env`의 `QSEED_STOCK_BASE_DIR`이 `stocks.db` 경로를 가리키는지 확인하세요. dbt와 Streamlit을 동시에 같은 DB에 열면 잠금이 날 수 있습니다.
 
 ### 4. 웹 조회 서버 (선택)
 
@@ -197,4 +200,4 @@ PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db
 
 - `data/`, `target/`, `logs/`, `profiles.yml`, `research/` 등 런타임·로컬 산출물은 `.gitignore`에 포함되어 있습니다.
 - GCS 업로드는 `QSEED_GCS_BUCKET_NAME`이 설정된 경우에만 full 적재 시 Parquet 파일에 대해 동작합니다.
-- Streamlit stocks 리뷰 대시보드: `PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py`
+- Streamlit 리뷰 대시보드: `PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py`
