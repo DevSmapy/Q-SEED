@@ -57,3 +57,6 @@ models:
 
   - name: rpt_stocks__coverage_by_sector
     description: "Ticker counts and pct by GICS-aligned sector"
+
+  - name: rpt_stocks__sector_enrichment_queue
+    description: "EQUITY tickers needing manual or external sector enrichment"

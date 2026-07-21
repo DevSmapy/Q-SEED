@@ -185,6 +185,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="--update-security-metadata 시 EQUITY만 raw_security_metadata에 저장",
     )
     parser.add_argument(
+        "--import-security-overrides",
+        type=str,
+        default=None,
+        metavar="CSV",
+        help="수동 섹터 override CSV를 raw_security_metadata에 upsert",
+    )
+    parser.add_argument(
+        "--export-enrichment-queue",
+        type=str,
+        default=None,
+        metavar="CSV",
+        help="섹터 enrichment 대상 목록 CSV export (dbt mart 또는 raw fallback)",
+    )
+    parser.add_argument(
         "--run-factor-analysis",
         action="store_true",
         help="팩터 IC·분위수 분석 실행",
@@ -523,6 +537,46 @@ def run_stock_pipeline_cli(
     return 0
 
 
+def run_security_enrichment_cli(args: argparse.Namespace) -> int:
+    """Manual override import / enrichment queue export."""
+    from src.metadata.enrichment import export_enrichment_queue, import_security_overrides
+    from src.qseed.config import get_config
+
+    config = get_config()
+    if args.data_dir is not None:
+        config.stock.base_dir = Path(args.data_dir)
+
+    log_path = config.stock.log_dir / "qseed_run.log"
+    logger = setup_logging(log_path)
+
+    if args.import_security_overrides:
+        import_result = import_security_overrides(
+            config.stock.db_path,
+            Path(args.import_security_overrides),
+        )
+        logger.info(
+            "Security overrides imported: upserted=%s skipped=%s",
+            import_result.imported,
+            import_result.skipped,
+        )
+        return 0
+
+    if args.export_enrichment_queue:
+        export_result = export_enrichment_queue(
+            config.stock.db_path,
+            Path(args.export_enrichment_queue),
+        )
+        logger.info(
+            "Enrichment queue exported: rows=%s source=%s path=%s",
+            export_result.row_count,
+            export_result.source,
+            export_result.output_path,
+        )
+        return 0
+
+    return -1
+
+
 def run_security_metadata_cli(args: argparse.Namespace) -> int:
     """종목 메타데이터 수집 CLI."""
     from src.pipelines.security_metadata_pipeline import (
@@ -621,6 +675,11 @@ def main() -> int:
     )
     if args.update_security_metadata:
         return run_security_metadata_cli(args)
+
+    if args.import_security_overrides or args.export_enrichment_queue:
+        exit_code = run_security_enrichment_cli(args)
+        if exit_code >= 0:
+            return exit_code
 
     if analysis_or_backtest:
         if args.list_factors or args.run_factor_analysis:

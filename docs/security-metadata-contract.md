@@ -144,6 +144,35 @@ uv run qseed --update-security-metadata --max-tickers 100 --security-sleep 0.3
 
 로컬 dev (M2 Air): `--max-tickers 50~100`. Full universe run은 외장 DB·야간 batch.
 
+## CLI (Track E — enrichment)
+
+```bash
+# dbt run --select rpt_stocks__sector_enrichment_queue 후 mart export
+uv run qseed --export-enrichment-queue ./data/enrichment_queue.csv --data-dir ./data
+
+# 수동 override (CSV: Ticker, Market, sector, industry[, company_name])
+uv run qseed --import-security-overrides ./data/security_overrides.csv --data-dir ./data
+```
+
+Override rows use `sector_source = 'manual'` and take priority on the next `dim_stocks__security` build (latest `updated_at` wins).
+
+## dbt mart — `rpt_stocks__sector_enrichment_queue`
+
+EQUITY tickers with `sector_status IN ('unclassified', 'error')` from `dim_stocks__security`.
+
+| Column               | Description                  |
+| -------------------- | ---------------------------- |
+| Ticker, Market       | keys                         |
+| company_name         |                              |
+| sector               | current (often Unclassified) |
+| industry             |                              |
+| sector_status        | unclassified/error           |
+| sector_status_reason |                              |
+| sector_source        |                              |
+| as_of                |                              |
+
+Downstream AI: read exported CSV or query mart; write overrides back via `--import-security-overrides`.
+
 ## Downstream contract
 
 - Read marts from `stocks.db` after `dbt run`.
@@ -154,5 +183,4 @@ uv run qseed --update-security-metadata --max-tickers 100 --security-sleep 0.3
 ## Deferred (not in v1 contract)
 
 - `marketCap`, `sharesOutstanding`, `cap_tier`
-- `rpt_stocks__sector_enrichment_queue` mart
 - REST API export
