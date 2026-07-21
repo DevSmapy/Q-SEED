@@ -117,7 +117,11 @@ def parse_override_row(override: OverrideInput) -> dict[str, Any]:
 
 def load_override_rows(csv_path: Path) -> tuple[list[dict[str, Any]], int]:
     """Parse override CSV; returns rows and skipped invalid line count."""
-    frame = pd.read_csv(csv_path)
+    try:
+        frame = pd.read_csv(csv_path, dtype=str)
+    except pd.errors.EmptyDataError:
+        return [], 0
+
     missing = [col for col in OVERRIDE_CSV_COLUMNS if col not in frame.columns]
     if missing:
         msg = f"Override CSV requires columns {OVERRIDE_CSV_COLUMNS}; missing {missing}"
@@ -190,39 +194,40 @@ def run_search_hook_batch(
 ) -> int:
     """Apply an external search hook to queue rows (stub integration point)."""
     export_path = Path(db_path).parent / ".enrichment_queue_tmp.csv"
-    result = export_enrichment_queue(db_path, export_path)
-    if result.row_count == 0:
-        export_path.unlink(missing_ok=True)
-        return 0
+    try:
+        result = export_enrichment_queue(db_path, export_path)
+        if result.row_count == 0:
+            return 0
 
-    queue = pd.read_csv(export_path)
-    export_path.unlink(missing_ok=True)
-    if max_rows is not None:
-        queue = queue.head(max_rows)
+        queue = pd.read_csv(export_path, dtype=str)
+        if max_rows is not None:
+            queue = queue.head(max_rows)
 
-    rows: list[dict[str, Any]] = []
-    for record in queue.to_dict(orient="records"):
-        ticker = str(record["Ticker"])
-        market = str(record["Market"])
-        found = hook.lookup(ticker, market)
-        if not found:
-            continue
-        sector = found.get("sector")
-        if not sector:
-            continue
-        rows.append(
-            parse_override_row(
-                OverrideInput(
-                    ticker=ticker,
-                    market=market,
-                    sector=str(sector),
-                    industry=found.get("industry"),
-                    company_name=found.get("company_name"),
+        rows: list[dict[str, Any]] = []
+        for record in queue.to_dict(orient="records"):
+            ticker = str(record["Ticker"])
+            market = str(record["Market"])
+            found = hook.lookup(ticker, market)
+            if not found:
+                continue
+            sector = found.get("sector")
+            if not sector:
+                continue
+            rows.append(
+                parse_override_row(
+                    OverrideInput(
+                        ticker=ticker,
+                        market=market,
+                        sector=str(sector),
+                        industry=found.get("industry"),
+                        company_name=found.get("company_name"),
+                    )
                 )
             )
-        )
 
-    if not rows:
-        return 0
-    with SecurityRepository(db_path) as repo:
-        return repo.upsert_rows(rows)
+        if not rows:
+            return 0
+        with SecurityRepository(db_path) as repo:
+            return repo.upsert_rows(rows)
+    finally:
+        export_path.unlink(missing_ok=True)

@@ -73,15 +73,21 @@ class SecurityRepository:
         conn = self.conn
         conn.register("df_security_meta", frame)
         try:
-            conn.execute(
-                f"""
-                DELETE FROM {self.TABLE}
-                WHERE (Ticker, Market) IN (
-                    SELECT Ticker, Market FROM df_security_meta
+            conn.execute("BEGIN TRANSACTION")
+            try:
+                conn.execute(
+                    f"""
+                    DELETE FROM {self.TABLE}
+                    WHERE (Ticker, Market) IN (
+                        SELECT Ticker, Market FROM df_security_meta
+                    )
+                    """
                 )
-                """
-            )
-            conn.execute(f"INSERT INTO {self.TABLE} BY NAME SELECT * FROM df_security_meta")
+                conn.execute(f"INSERT INTO {self.TABLE} BY NAME SELECT * FROM df_security_meta")
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
         finally:
             try:
                 conn.unregister("df_security_meta")
