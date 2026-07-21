@@ -36,6 +36,26 @@ m4.metric(
     f"{str(meta['start_date'])[:10]} → {str(meta['end_date'])[:10]}",
 )
 
+try:
+    sec = query_df(
+        """
+        select sector, industry, quote_type, sector_status
+        from dim_stocks__security
+        where Ticker = ?
+        limit 1
+        """,
+        params=(ticker,),
+    )
+    if not sec.empty:
+        srow = sec.iloc[0]
+        s1, s2, s3, s4 = st.columns(4)
+        s1.metric("Sector", str(srow.get("sector", "—")))
+        s2.metric("Industry", str(srow.get("industry", "—")))
+        s3.metric("Quote type", str(srow.get("quote_type", "—")))
+        s4.metric("Sector status", str(srow.get("sector_status", "—")))
+except Exception:
+    st.caption("Sector metadata not loaded (run --update-security-metadata + dbt).")
+
 series = query_df(
     """
     select Date, Open, High, Low, Close, Volume, Dividends, Split
