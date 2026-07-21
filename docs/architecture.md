@@ -71,6 +71,22 @@ raw_market_breadth (
 `raw_market_series`는 FDR/yfinance 외부 시계열(VIX, DXY, 금리차, 고객예탁금).
 `raw_market_breadth`는 `raw_stocks`에서 파생한 시장별 등락·이평 상회 비율입니다.
 
+### Security metadata (종목 섹터·업종)
+
+```sql
+raw_security_metadata (
+    Ticker, Market, company_name, quote_type,
+    sector_raw, sector, industry_raw, industry,
+    sector_key, industry_key, country, currency,
+    sector_source, sector_status, sector_status_reason,
+    as_of, updated_at
+)
+```
+
+스키마·enum·GICS 정규화 규칙: [security-metadata-contract.md](security-metadata-contract.md).
+
+dbt marts: `dim_stocks__security`, `rpt_stocks__coverage_by_sector`, `rpt_stocks__investable_universe`.
+
 ### Phase 2 — 팩터 분석
 
 | 테이블                    | 설명          |
