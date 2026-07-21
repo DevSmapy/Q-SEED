@@ -163,6 +163,28 @@ def build_parser() -> argparse.ArgumentParser:
         help='데이터 디렉토리 경로 (기본값: "./data")',
     )
     parser.add_argument(
+        "--update-security-metadata",
+        action="store_true",
+        help="yfinance info 기반 종목 섹터·업종 메타데이터 적재",
+    )
+    parser.add_argument(
+        "--max-tickers",
+        type=int,
+        default=None,
+        help="--update-security-metadata 시 수집 최대 종목 수 (로컬 dev)",
+    )
+    parser.add_argument(
+        "--security-sleep",
+        type=float,
+        default=None,
+        help="--update-security-metadata 시 티커 간 대기(초)",
+    )
+    parser.add_argument(
+        "--security-equity-only",
+        action="store_true",
+        help="--update-security-metadata 시 EQUITY만 raw_security_metadata에 저장",
+    )
+    parser.add_argument(
         "--run-factor-analysis",
         action="store_true",
         help="팩터 IC·분위수 분석 실행",
@@ -501,6 +523,93 @@ def run_stock_pipeline_cli(
     return 0
 
 
+def run_security_metadata_cli(args: argparse.Namespace) -> int:
+    """종목 메타데이터 수집 CLI."""
+    from src.pipelines.security_metadata_pipeline import (
+        SecurityMetadataPipeline,
+        SecurityMetadataRunOptions,
+    )
+    from src.qseed.config import get_config
+
+    config = get_config()
+    if args.data_dir is not None:
+        config.stock.base_dir = Path(args.data_dir)
+
+    log_path = config.stock.log_dir / "qseed_run.log"
+    logger = setup_logging(log_path)
+    logger.info("Security metadata CLI 시작")
+
+    max_tickers = args.max_tickers
+    if max_tickers is None:
+        max_tickers = config.security.max_tickers
+
+    sleep_seconds = args.security_sleep
+    if sleep_seconds is None:
+        sleep_seconds = config.security.sleep_seconds
+
+    equity_only = args.security_equity_only or config.security.equity_only
+
+    pipeline = SecurityMetadataPipeline(
+        db_path=config.stock.db_path,
+        ticker_list_path=config.stock.ticker_list_path,
+    )
+    result = pipeline.run(
+        SecurityMetadataRunOptions(
+            max_tickers=max_tickers,
+            sleep_seconds=sleep_seconds,
+            equity_only=equity_only,
+        )
+    )
+    logger.info(
+        "Security metadata 완료: upserted=%s mapped=%s unclassified=%s errors=%s",
+        result.upserted,
+        result.fetch.mapped,
+        result.fetch.unclassified,
+        result.fetch.errors,
+    )
+    return 0
+
+
+def run_stock_main_cli(args: argparse.Namespace) -> int:
+    """주식 파이프라인·공백 CLI 진입."""
+    if not (
+        args.run_stock_pipeline
+        or args.build_db
+        or args.update_db
+        or args.check_gaps
+        or args.repair_gaps
+    ):
+        return -1
+
+    if args.data_dir is not None:
+        new_base_dir = Path(args.data_dir)
+        from src.qseed.config import get_config
+
+        config = get_config()
+        config.stock.base_dir = new_base_dir
+        pipeline = StockDataPipeline(deps=StockPipelineDependencies(config=config))
+    else:
+        pipeline = StockDataPipeline()
+
+    log_path = pipeline.config.stock.log_dir / "qseed_run.log"
+    logger = setup_logging(log_path)
+    logger.info("Q-SEED CLI 실행 시작")
+
+    if args.check_gaps or args.repair_gaps:
+        if args.check_gaps:
+            logger.info("모드: 공백 탐지 (--check-gaps)")
+            pipeline.run(PipelineRunOptions(check_gaps_only=True))
+        else:
+            logger.info("모드: 공백 복구 (--repair-gaps)")
+            pipeline.run(PipelineRunOptions(repair_gaps=True, end_date=args.end_date))
+        logger.info("Q-SEED CLI 실행 완료")
+        return 0
+
+    run_stock_pipeline_cli(args, pipeline, logger)
+    logger.info("Q-SEED CLI 실행 완료")
+    return 0
+
+
 def main() -> int:
     """CLI 메인 함수."""
     raise_open_file_limit()
@@ -510,6 +619,9 @@ def main() -> int:
     analysis_or_backtest = (
         args.list_factors or args.run_factor_analysis or args.run_optimize or args.run_backtest
     )
+    if args.update_security_metadata:
+        return run_security_metadata_cli(args)
+
     if analysis_or_backtest:
         if args.list_factors or args.run_factor_analysis:
             exit_code = run_factor_analysis(args)
@@ -532,45 +644,11 @@ def main() -> int:
         logger.info("Q-SEED CLI 실행 완료")
         return exit_code
 
-    if not (
-        args.run_stock_pipeline
-        or args.build_db
-        or args.update_db
-        or args.check_gaps
-        or args.repair_gaps
-    ):
-        parser.print_help()
-        return 0
+    stock_exit = run_stock_main_cli(args)
+    if stock_exit >= 0:
+        return stock_exit
 
-    if args.data_dir is not None:
-        new_base_dir = Path(args.data_dir)
-        # config의 base_dir를 직접 수정 (pydantic-settings 모델)
-        from src.qseed.config import get_config
-
-        config = get_config()
-        config.stock.base_dir = new_base_dir
-        pipeline = StockDataPipeline(deps=StockPipelineDependencies(config=config))
-    else:
-        pipeline = StockDataPipeline()
-
-    # 로깅 설정 (data/data_log/ 디렉토리 내에 로그 파일 생성)
-    log_path = pipeline.config.stock.log_dir / "qseed_run.log"
-    logger = setup_logging(log_path)
-
-    logger.info("Q-SEED CLI 실행 시작")
-
-    if args.check_gaps or args.repair_gaps:
-        if args.check_gaps:
-            logger.info("모드: 공백 탐지 (--check-gaps)")
-            pipeline.run(PipelineRunOptions(check_gaps_only=True))
-        else:
-            logger.info("모드: 공백 복구 (--repair-gaps)")
-            pipeline.run(PipelineRunOptions(repair_gaps=True, end_date=args.end_date))
-        logger.info("Q-SEED CLI 실행 완료")
-        return 0
-
-    run_stock_pipeline_cli(args, pipeline, logger)
-    logger.info("Q-SEED CLI 실행 완료")
+    parser.print_help()
     return 0
 
 

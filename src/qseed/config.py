@@ -153,6 +153,32 @@ class OptimizeConfig(BaseSettings):
     position_mode: str = Field(default="long_short", description="long_short 또는 long_only")
 
 
+class SecurityMetadataConfig(BaseSettings):
+    """종목 섹터·업종 메타데이터 수집 설정."""
+
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        env_prefix="QSEED_SECURITY_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    sleep_seconds: float = Field(
+        default=0.3,
+        ge=0,
+        description="티커 간 yfinance info 대기(초)",
+    )
+    max_tickers: int | None = Field(
+        default=None,
+        ge=1,
+        description="메타데이터 수집 최대 종목 수 (로컬 dev)",
+    )
+    equity_only: bool = Field(
+        default=False,
+        description="EQUITY quote_type만 저장 (비-EQUITY는 API 호출 후 skip)",
+    )
+
+
 class GCSConfig(BaseSettings):
     """Google Cloud Storage 설정."""
 
@@ -185,6 +211,7 @@ class AppConfig(BaseSettings):
     factor: FactorConfig = Field(default_factory=FactorConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     optimize: OptimizeConfig = Field(default_factory=OptimizeConfig)
+    security: SecurityMetadataConfig = Field(default_factory=SecurityMetadataConfig)
     gcs: GCSConfig = Field(default_factory=GCSConfig)
 
     @classmethod
