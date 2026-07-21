@@ -35,3 +35,19 @@ models:
 
   - name: fct_stocks__price_factors
     description: "OHLCV price/volume factors SQL reference (stocks domain)"
+
+  - name: stg_stocks__raw_security_metadata
+    description: "Staging pass-through of raw_security_metadata"
+
+  - name: dim_stocks__security
+    description: "Latest security metadata per (Ticker, Market)"
+    columns:
+      - name: Ticker
+        tests: [not_null]
+      - name: Market
+        tests: [not_null]
+      - name: sector
+        tests: [not_null]
+
+  - name: rpt_stocks__coverage_by_sector
+    description: "Ticker counts and pct by GICS-aligned sector"

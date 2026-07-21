@@ -28,3 +28,5 @@ sources:
             description: "Dividend amount on the day"
           - name: Split
             description: "Split ratio on the day"
+      - name: raw_security_metadata
+        description: "Ticker sector/industry metadata from yfinance (Q-SEED security pipeline)"
