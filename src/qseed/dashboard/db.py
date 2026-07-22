@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from qseed.config import get_config
+from repositories.duckdb_conn import connect
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ def get_connection() -> duckdb.DuckDBPyConnection:
     if not paths.db_path.exists():
         raise FileNotFoundError(f"DuckDB not found: {paths.db_path}")
     # read_only avoids locking writers; dbt runs need exclusive access separately
-    return duckdb.connect(str(paths.db_path), read_only=True)
+    return connect(paths.db_path, read_only=True)
 
 
 @st.cache_data(ttl=300)  # type: ignore[misc]

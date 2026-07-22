@@ -8,6 +8,8 @@ from typing import cast
 import duckdb
 import pandas as pd
 
+from src.repositories.duckdb_conn import connect
+
 
 class DuckDBPreviewRepository:
     """DuckDB에 저장된 주식 데이터를 조회하는 저장소."""
@@ -25,7 +27,7 @@ class DuckDBPreviewRepository:
     def conn(self) -> duckdb.DuckDBPyConnection:
         """활성 DuckDB 연결 객체."""
         if self._conn is None:
-            self._conn = duckdb.connect(str(self.db_path))
+            self._conn = connect(self.db_path)
         return self._conn
 
     def preview_all(self, limit: int = 10) -> pd.DataFrame:

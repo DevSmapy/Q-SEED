@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from src.pipelines.stock_types import FetchStoreOptions, StockPipelineResult
 from src.repositories.gap_detector import detect_gaps
 
 if TYPE_CHECKING:
-    from src.pipelines.stock_pipeline import FetchStoreOptions, StockPipelineResult
     from src.repositories.duckdb_builder import DuckDBRepository
 
 
@@ -25,8 +25,6 @@ class GapRunContext:
 
 def run_gap_check(repo: DuckDBRepository, ctx: GapRunContext) -> StockPipelineResult:
     """공백 탐지 리포트만 출력."""
-    from src.pipelines.stock_pipeline import StockPipelineResult
-
     report = detect_gaps(repo.conn, ctx.gap_tolerance_days)
 
     print("\n=== Gap Check Report ===")
@@ -59,8 +57,6 @@ def run_gap_repair_with_repo(
     fetch_and_store: Callable[[FetchStoreOptions, DuckDBRepository], StockPipelineResult],
 ) -> StockPipelineResult:
     """시장별 기준일 대비 뒤처진 티커만 재수집."""
-    from src.pipelines.stock_pipeline import FetchStoreOptions, StockPipelineResult
-
     repo.initialize()
     report = detect_gaps(repo.conn, ctx.gap_tolerance_days)
 

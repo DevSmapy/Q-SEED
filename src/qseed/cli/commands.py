@@ -6,14 +6,12 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from src.pipelines.market_pipeline import MarketDataPipeline, MarketPipelineOptions
-from src.pipelines.stock_pipeline import (
-    PipelineMode,
-    PipelineRunOptions,
-    StockDataPipeline,
-    StockPipelineDependencies,
-)
+from src.pipelines.stock_types import PipelineMode, PipelineRunOptions
+
+if TYPE_CHECKING:
+    from src.pipelines.stock_pipeline import StockDataPipeline
 
 
 def setup_logging(log_file: Path) -> logging.Logger:
@@ -235,6 +233,7 @@ def run_factor_analysis(args: argparse.Namespace) -> int:
 
 def run_market_pipeline_cli(args: argparse.Namespace, logger: logging.Logger) -> int:
     """시장 지표 파이프라인 CLI 실행."""
+    from src.pipelines.market_pipeline import MarketDataPipeline, MarketPipelineOptions
     from src.qseed.config import get_config
 
     config = get_config()
@@ -391,6 +390,8 @@ def run_security_metadata_cli(args: argparse.Namespace) -> int:
 
 def run_stock_main_cli(args: argparse.Namespace) -> int:
     """주식 파이프라인·공백 CLI 진입."""
+    from src.pipelines.stock_pipeline import StockDataPipeline, StockPipelineDependencies
+
     if not (
         args.run_stock_pipeline
         or args.build_db
