@@ -15,10 +15,10 @@ if typing.TYPE_CHECKING:
     from src.uploaders.gcs import GCSUploader
 
 from src.fetchers.yfinance import YFinanceFetcher
+from src.pipelines.stock_gap import GapRunContext, run_gap_check, run_gap_repair_with_repo
 from src.providers.stock_provider import StockProvider
 from src.qseed.config import AppConfig, get_config
 from src.repositories.duckdb_builder import DuckDBRepository
-from src.repositories.gap_detector import detect_gaps
 from src.repositories.parquet_writer import ParquetRepository
 from src.utils.helpers import (
     chunked,
@@ -181,32 +181,18 @@ class StockDataPipeline:
 
         return repo.get_max_date()
 
+    def _gap_context(self) -> GapRunContext:
+        return GapRunContext(
+            gap_tolerance_days=self.config.stock.gap_tolerance_days,
+            ticker_list_path=self.config.stock.ticker_list_path,
+            no_data_path=self.config.stock.no_data_path,
+        )
+
     def _run_gap_check(self) -> StockPipelineResult:
         """공백 탐지 리포트만 출력."""
         self.config.stock.ensure_directories()
         with self.repository as repo:
-            report = detect_gaps(repo.conn, self.config.stock.gap_tolerance_days)
-
-        print("\n=== Gap Check Report ===")
-        print(f"Tolerance: {self.config.stock.gap_tolerance_days} calendar days (per market)")
-        print(f"Lagging tickers: {report.lagging_count}")
-        if not report.market_summary.empty:
-            print("\n[Market summary]")
-            print(report.market_summary.to_string(index=False))
-        if not report.lagging_tickers.empty:
-            print("\n[Top 20 lagging tickers]")
-            print(report.lagging_tickers.head(20).to_string(index=False))
-
-        return StockPipelineResult(
-            total_attempted=0,
-            success_tickers=[],
-            failed_tickers=report.lagging_tickers["Ticker"].tolist()
-            if not report.lagging_tickers.empty
-            else [],
-            parquet_files=[],
-            ticker_list_path=self.config.stock.ticker_list_path,
-            no_data_path=self.config.stock.no_data_path,
-        )
+            return run_gap_check(repo, self._gap_context())
 
     def _run_gap_repair(
         self,
@@ -229,43 +215,11 @@ class StockDataPipeline:
         *,
         end_date: str | None = None,
     ) -> StockPipelineResult:
-        repo.initialize()
-        report = detect_gaps(repo.conn, self.config.stock.gap_tolerance_days)
-
-        if report.lagging_count == 0:
-            print("공백 티커 없음 — 복구할 데이터가 없습니다.")
-            return StockPipelineResult(
-                total_attempted=0,
-                success_tickers=[],
-                failed_tickers=[],
-                parquet_files=[],
-                ticker_list_path=self.config.stock.ticker_list_path,
-                no_data_path=self.config.stock.no_data_path,
-            )
-
-        lagging = report.lagging_tickers
-        tickers = lagging["Ticker"].tolist()
-        ticker_to_market = dict(zip(lagging["Ticker"], lagging["Market"], strict=True))
-        ticker_start_dates = dict(
-            zip(
-                lagging["Ticker"],
-                lagging["last_date"].astype(str),
-                strict=True,
-            )
-        )
-
-        print("\n=== Gap Repair ===")
-        print(f"Re-fetching {len(tickers)} lagging tickers")
-
-        return self._fetch_and_store_tickers(
-            FetchStoreOptions(
-                tickers=tickers,
-                ticker_to_market=ticker_to_market,
-                ticker_start_dates=ticker_start_dates,
-                end_date=end_date,
-                parquet_prefix="stocks_gap",
-            ),
-            repo=repo,
+        return run_gap_repair_with_repo(
+            repo,
+            self._gap_context(),
+            end_date=end_date,
+            fetch_and_store=self._fetch_and_store_with_repo,
         )
 
     def _fetch_and_store_tickers(
