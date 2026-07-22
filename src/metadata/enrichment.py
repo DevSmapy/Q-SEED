@@ -7,10 +7,10 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-import duckdb
 import pandas as pd
 
 from src.metadata.sector_map import UNCLASSIFIED_SECTOR, normalize_sector
+from src.repositories.duckdb_conn import connect, table_exists
 from src.repositories.security_repository import SecurityRepository
 
 ENRICHMENT_QUEUE_MART = "rpt_stocks__sector_enrichment_queue"
@@ -74,18 +74,6 @@ class EnrichmentExportResult:
     row_count: int
     output_path: Path
     source: str
-
-
-def _table_exists(conn: duckdb.DuckDBPyConnection, name: str) -> bool:
-    row = conn.execute(
-        """
-        select count(*)
-        from information_schema.tables
-        where table_name = ?
-        """,
-        [name],
-    ).fetchone()
-    return row is not None and int(row[0]) > 0
 
 
 def parse_override_row(override: OverrideInput) -> dict[str, Any]:
@@ -171,9 +159,9 @@ def export_enrichment_queue(
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = duckdb.connect(str(db_path), read_only=True)
+    conn = connect(db_path, read_only=True)
     try:
-        if _table_exists(conn, ENRICHMENT_QUEUE_MART):
+        if table_exists(conn, ENRICHMENT_QUEUE_MART):
             frame = conn.execute(f"select * from {ENRICHMENT_QUEUE_MART}").df()
             source = ENRICHMENT_QUEUE_MART
         else:
