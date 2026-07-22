@@ -8,6 +8,8 @@ from typing import Any, cast
 import duckdb
 import pandas as pd
 
+from src.repositories.duckdb_conn import connect
+
 
 class SecurityRepository:
     """raw_security_metadata 저장소."""
@@ -29,7 +31,7 @@ class SecurityRepository:
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
         if self._conn is None:
-            self._conn = duckdb.connect(str(self.db_path))
+            self._conn = connect(self.db_path)
         return self._conn
 
     def close(self) -> None:

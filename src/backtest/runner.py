@@ -21,6 +21,7 @@ from src.backtest.strategy import (
 from src.factors.registry import get_factor
 from src.optimize.methods import DEFAULT_LOOKBACK, DEFAULT_MAX_ASSETS, WeightMethod
 from src.repositories.backtest_repository import BacktestRepository, BacktestTables
+from src.utils.labels import markets_label
 
 logger = logging.getLogger("qseed")
 
@@ -135,7 +136,7 @@ class BacktestRunner:
             rebalance_count=len(engine_result.rebalance_dates),
         )
         summary = metrics_to_dataframe(metrics)
-        summary["markets"] = _markets_label(run_config.markets)
+        summary["markets"] = markets_label(run_config.markets)
         summary["ticker_count"] = scope.ticker_count
         summary["output_path"] = str(self.output_dir / run_id) if self.output_dir else None
 
@@ -193,9 +194,3 @@ def _generate_run_id(factor_name: str, weight_method: WeightMethod = "equal_weig
     if weight_method == "equal_weight":
         return f"{factor_name}_{timestamp}"
     return f"{factor_name}_{weight_method}_{timestamp}"
-
-
-def _markets_label(markets: list[str] | None) -> str | None:
-    if not markets:
-        return None
-    return ",".join(sorted(markets))

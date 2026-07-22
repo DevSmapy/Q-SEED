@@ -7,6 +7,8 @@ from typing import Any
 
 import duckdb
 
+from src.repositories.duckdb_conn import connect
+
 
 class DuckDBSearchRepository:
     """DuckDB 테이블 검색용 읽기 전용 저장소."""
@@ -181,7 +183,7 @@ class DuckDBSearchRepository:
         Returns:
             DuckDB 연결 객체
         """
-        return duckdb.connect(str(self.database_path), read_only=True)
+        return connect(self.database_path, read_only=True)
 
     def _get_columns(self, conn: duckdb.DuckDBPyConnection) -> list[str]:
         """테이블 컬럼명 목록 조회.

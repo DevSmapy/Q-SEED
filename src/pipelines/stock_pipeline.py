@@ -15,10 +15,16 @@ if typing.TYPE_CHECKING:
     from src.uploaders.gcs import GCSUploader
 
 from src.fetchers.yfinance import YFinanceFetcher
+from src.pipelines.stock_gap import GapRunContext, run_gap_check, run_gap_repair_with_repo
+from src.pipelines.stock_types import (
+    FetchStoreOptions,
+    PipelineMode,
+    PipelineRunOptions,
+    StockPipelineResult,
+)
 from src.providers.stock_provider import StockProvider
 from src.qseed.config import AppConfig, get_config
 from src.repositories.duckdb_builder import DuckDBRepository
-from src.repositories.gap_detector import detect_gaps
 from src.repositories.parquet_writer import ParquetRepository
 from src.utils.helpers import (
     chunked,
@@ -28,7 +34,14 @@ from src.utils.helpers import (
     save_list_to_file,
 )
 
-type PipelineMode = typing.Literal["full", "incremental"]
+__all__ = [
+    "FetchStoreOptions",
+    "PipelineMode",
+    "PipelineRunOptions",
+    "StockDataPipeline",
+    "StockPipelineDependencies",
+    "StockPipelineResult",
+]
 
 
 @dataclass(slots=True)
@@ -41,50 +54,6 @@ class StockPipelineDependencies:
     repository: DuckDBRepository | None = None
     parquet_repository: ParquetRepository | None = None
     uploader: GCSUploader | None = None
-
-
-@dataclass(slots=True)
-class PipelineRunOptions:
-    """파이프라인 실행 옵션."""
-
-    mode: PipelineMode = "full"
-    start_date: str | None = None
-    end_date: str | None = None
-    repair_gaps: bool = False
-    check_gaps_only: bool = False
-    skip_auto_repair: bool = False
-
-
-@dataclass(slots=True)
-class FetchStoreOptions:
-    """청크 수집·저장 옵션."""
-
-    tickers: list[str]
-    ticker_to_market: dict[str, str]
-    ticker_start_dates: dict[str, str] | None = None
-    end_date: str | None = None
-    parquet_prefix: str = "stocks_inc"
-    explicit_start_date: str | None = None
-
-
-@dataclass(slots=True)
-class StockPipelineResult:
-    """파이프라인 실행 결과."""
-
-    total_attempted: int
-    success_tickers: list[str]
-    failed_tickers: list[str]
-    parquet_files: list[Path]
-    ticker_list_path: Path
-    no_data_path: Path
-
-    @property
-    def success_count(self) -> int:
-        return len(self.success_tickers)
-
-    @property
-    def failed_count(self) -> int:
-        return len(self.failed_tickers)
 
 
 class StockDataPipeline:
@@ -181,32 +150,18 @@ class StockDataPipeline:
 
         return repo.get_max_date()
 
+    def _gap_context(self) -> GapRunContext:
+        return GapRunContext(
+            gap_tolerance_days=self.config.stock.gap_tolerance_days,
+            ticker_list_path=self.config.stock.ticker_list_path,
+            no_data_path=self.config.stock.no_data_path,
+        )
+
     def _run_gap_check(self) -> StockPipelineResult:
         """공백 탐지 리포트만 출력."""
         self.config.stock.ensure_directories()
         with self.repository as repo:
-            report = detect_gaps(repo.conn, self.config.stock.gap_tolerance_days)
-
-        print("\n=== Gap Check Report ===")
-        print(f"Tolerance: {self.config.stock.gap_tolerance_days} calendar days (per market)")
-        print(f"Lagging tickers: {report.lagging_count}")
-        if not report.market_summary.empty:
-            print("\n[Market summary]")
-            print(report.market_summary.to_string(index=False))
-        if not report.lagging_tickers.empty:
-            print("\n[Top 20 lagging tickers]")
-            print(report.lagging_tickers.head(20).to_string(index=False))
-
-        return StockPipelineResult(
-            total_attempted=0,
-            success_tickers=[],
-            failed_tickers=report.lagging_tickers["Ticker"].tolist()
-            if not report.lagging_tickers.empty
-            else [],
-            parquet_files=[],
-            ticker_list_path=self.config.stock.ticker_list_path,
-            no_data_path=self.config.stock.no_data_path,
-        )
+            return run_gap_check(repo, self._gap_context())
 
     def _run_gap_repair(
         self,
@@ -229,43 +184,11 @@ class StockDataPipeline:
         *,
         end_date: str | None = None,
     ) -> StockPipelineResult:
-        repo.initialize()
-        report = detect_gaps(repo.conn, self.config.stock.gap_tolerance_days)
-
-        if report.lagging_count == 0:
-            print("공백 티커 없음 — 복구할 데이터가 없습니다.")
-            return StockPipelineResult(
-                total_attempted=0,
-                success_tickers=[],
-                failed_tickers=[],
-                parquet_files=[],
-                ticker_list_path=self.config.stock.ticker_list_path,
-                no_data_path=self.config.stock.no_data_path,
-            )
-
-        lagging = report.lagging_tickers
-        tickers = lagging["Ticker"].tolist()
-        ticker_to_market = dict(zip(lagging["Ticker"], lagging["Market"], strict=True))
-        ticker_start_dates = dict(
-            zip(
-                lagging["Ticker"],
-                lagging["last_date"].astype(str),
-                strict=True,
-            )
-        )
-
-        print("\n=== Gap Repair ===")
-        print(f"Re-fetching {len(tickers)} lagging tickers")
-
-        return self._fetch_and_store_tickers(
-            FetchStoreOptions(
-                tickers=tickers,
-                ticker_to_market=ticker_to_market,
-                ticker_start_dates=ticker_start_dates,
-                end_date=end_date,
-                parquet_prefix="stocks_gap",
-            ),
-            repo=repo,
+        return run_gap_repair_with_repo(
+            repo,
+            self._gap_context(),
+            end_date=end_date,
+            fetch_and_store=self._fetch_and_store_with_repo,
         )
 
     def _fetch_and_store_tickers(
@@ -361,7 +284,9 @@ class StockDataPipeline:
         """증분 적재와 공백 복구 결과 병합."""
         success = sorted(set(primary.success_tickers) | set(secondary.success_tickers))
         attempted = primary.total_attempted + secondary.total_attempted
-        failed = sorted(set(primary.failed_tickers) | set(secondary.failed_tickers) - set(success))
+        failed = sorted(
+            (set(primary.failed_tickers) | set(secondary.failed_tickers)) - set(success)
+        )
         return StockPipelineResult(
             total_attempted=attempted,
             success_tickers=success,

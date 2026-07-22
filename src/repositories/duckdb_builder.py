@@ -8,6 +8,8 @@ from typing import Any, cast
 import duckdb
 import pandas as pd
 
+from src.repositories.duckdb_conn import connect
+
 
 def _format_date_value(value: object) -> str:
     if hasattr(value, "strftime"):
@@ -41,7 +43,7 @@ class DuckDBRepository:
     def conn(self) -> duckdb.DuckDBPyConnection:
         """활성 DuckDB 연결 객체."""
         if self._conn is None:
-            self._conn = duckdb.connect(str(self.db_path))
+            self._conn = connect(self.db_path)
         return self._conn
 
     def ensure_database_file(self) -> None:
