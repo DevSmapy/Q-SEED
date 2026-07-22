@@ -12,6 +12,7 @@ import pandas as pd
 from src.backtest.export import BacktestRunScope
 from src.backtest.strategy import BacktestStrategy
 from src.repositories.factor_repository import FactorRepository
+from src.utils.labels import markets_label
 
 
 @dataclass(frozen=True)
@@ -44,12 +45,12 @@ class BacktestRepository(FactorRepository):
         daily["factor_name"] = tables.strategy.factor_name
         daily["position_mode"] = tables.strategy.position_mode
         daily["rebalance_freq"] = tables.strategy.rebalance_freq
-        daily["markets"] = _markets_label(tables.scope.markets)
+        daily["markets"] = markets_label(tables.scope.markets)
 
         positions = tables.positions.copy()
         positions["run_id"] = tables.run_id
         positions["factor_name"] = tables.strategy.factor_name
-        positions["markets"] = _markets_label(tables.scope.markets)
+        positions["markets"] = markets_label(tables.scope.markets)
 
         summary = tables.summary.copy()
         summary["run_id"] = tables.run_id
@@ -122,9 +123,3 @@ def _replace_run_rows(
             )
     finally:
         conn.unregister(register_name)
-
-
-def _markets_label(markets: list[str] | None) -> str | None:
-    if not markets:
-        return None
-    return ",".join(sorted(markets))
