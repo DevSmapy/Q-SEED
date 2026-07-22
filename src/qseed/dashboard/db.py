@@ -12,7 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from qseed.config import get_config
-from repositories.duckdb_conn import connect
+from src.repositories.duckdb_conn import connect
 
 
 @dataclass(frozen=True)

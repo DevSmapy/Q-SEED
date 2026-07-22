@@ -6,7 +6,7 @@ import typing
 from dataclasses import dataclass
 from pathlib import Path
 
-type PipelineMode = typing.Literal["full", "incremental"]
+PipelineMode = typing.Literal["full", "incremental"]
 
 
 @dataclass(slots=True)

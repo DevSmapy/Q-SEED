@@ -284,7 +284,9 @@ class StockDataPipeline:
         """증분 적재와 공백 복구 결과 병합."""
         success = sorted(set(primary.success_tickers) | set(secondary.success_tickers))
         attempted = primary.total_attempted + secondary.total_attempted
-        failed = sorted(set(primary.failed_tickers) | set(secondary.failed_tickers) - set(success))
+        failed = sorted(
+            (set(primary.failed_tickers) | set(secondary.failed_tickers)) - set(success)
+        )
         return StockPipelineResult(
             total_attempted=attempted,
             success_tickers=success,

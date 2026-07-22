@@ -25,6 +25,7 @@ class GapRunContext:
 
 def run_gap_check(repo: DuckDBRepository, ctx: GapRunContext) -> StockPipelineResult:
     """공백 탐지 리포트만 출력."""
+    repo.initialize()
     report = detect_gaps(repo.conn, ctx.gap_tolerance_days)
 
     print("\n=== Gap Check Report ===")
