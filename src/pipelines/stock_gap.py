@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from src.pipelines.stock_types import FetchStoreOptions, StockPipelineResult
 from src.repositories.gap_detector import detect_gaps
 
@@ -21,29 +23,41 @@ class GapRunContext:
     gap_tolerance_days: int
     ticker_list_path: Path
     no_data_path: Path
+    markets: list[str] | None = None
+
+
+def _filter_lagging(lagging: pd.DataFrame, markets: list[str] | None) -> pd.DataFrame:
+    if markets is None or lagging.empty:
+        return lagging
+    return lagging[lagging["Market"].isin(markets)].copy()
 
 
 def run_gap_check(repo: DuckDBRepository, ctx: GapRunContext) -> StockPipelineResult:
     """공백 탐지 리포트만 출력."""
     repo.initialize()
     report = detect_gaps(repo.conn, ctx.gap_tolerance_days)
+    lagging = _filter_lagging(report.lagging_tickers, ctx.markets)
 
     print("\n=== Gap Check Report ===")
     print(f"Tolerance: {ctx.gap_tolerance_days} calendar days (per market)")
-    print(f"Lagging tickers: {report.lagging_count}")
+    if ctx.markets:
+        print(f"Markets filter: {','.join(ctx.markets)}")
+    print(f"Lagging tickers: {len(lagging)}")
     if not report.market_summary.empty:
-        print("\n[Market summary]")
-        print(report.market_summary.to_string(index=False))
-    if not report.lagging_tickers.empty:
+        summary = report.market_summary
+        if ctx.markets:
+            summary = summary[summary["Market"].isin(ctx.markets)]
+        if not summary.empty:
+            print("\n[Market summary]")
+            print(summary.to_string(index=False))
+    if not lagging.empty:
         print("\n[Top 20 lagging tickers]")
-        print(report.lagging_tickers.head(20).to_string(index=False))
+        print(lagging.head(20).to_string(index=False))
 
     return StockPipelineResult(
         total_attempted=0,
         success_tickers=[],
-        failed_tickers=report.lagging_tickers["Ticker"].tolist()
-        if not report.lagging_tickers.empty
-        else [],
+        failed_tickers=lagging["Ticker"].tolist() if not lagging.empty else [],
         parquet_files=[],
         ticker_list_path=ctx.ticker_list_path,
         no_data_path=ctx.no_data_path,
@@ -60,8 +74,9 @@ def run_gap_repair_with_repo(
     """시장별 기준일 대비 뒤처진 티커만 재수집."""
     repo.initialize()
     report = detect_gaps(repo.conn, ctx.gap_tolerance_days)
+    lagging = _filter_lagging(report.lagging_tickers, ctx.markets)
 
-    if report.lagging_count == 0:
+    if lagging.empty:
         print("공백 티커 없음 — 복구할 데이터가 없습니다.")
         return StockPipelineResult(
             total_attempted=0,
@@ -72,7 +87,6 @@ def run_gap_repair_with_repo(
             no_data_path=ctx.no_data_path,
         )
 
-    lagging = report.lagging_tickers
     tickers = lagging["Ticker"].tolist()
     ticker_to_market = dict(zip(lagging["Ticker"], lagging["Market"], strict=True))
     ticker_start_dates = dict(

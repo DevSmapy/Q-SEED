@@ -19,6 +19,7 @@ class PipelineRunOptions:
     repair_gaps: bool = False
     check_gaps_only: bool = False
     skip_auto_repair: bool = False
+    markets: list[str] | None = None
 
 
 @dataclass(slots=True)

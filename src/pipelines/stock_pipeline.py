@@ -86,29 +86,32 @@ class StockDataPipeline:
     def run(self, options: PipelineRunOptions | None = None) -> StockPipelineResult:
         """데이터 수집 파이프라인 실행."""
         opts = options or PipelineRunOptions()
+        self._markets = opts.markets
+        try:
+            if opts.check_gaps_only:
+                return self._run_gap_check()
 
-        if opts.check_gaps_only:
-            return self._run_gap_check()
+            if opts.repair_gaps:
+                return self._run_gap_repair(end_date=opts.end_date)
 
-        if opts.repair_gaps:
-            return self._run_gap_repair(end_date=opts.end_date)
+            if opts.mode not in {"full", "incremental"}:
+                raise ValueError(f"지원하지 않는 실행 모드입니다: {opts.mode}")
 
-        if opts.mode not in {"full", "incremental"}:
-            raise ValueError(f"지원하지 않는 실행 모드입니다: {opts.mode}")
+            if opts.mode == "incremental":
+                with self.repository as repo:
+                    result = self._run_incremental_load(
+                        start_date=opts.start_date,
+                        end_date=opts.end_date,
+                        repo=repo,
+                    )
+                    if self.config.stock.auto_repair_gaps and not opts.skip_auto_repair:
+                        repair_result = self._run_gap_repair(end_date=opts.end_date, repo=repo)
+                        return self._merge_results(result, repair_result)
+                return result
 
-        if opts.mode == "incremental":
-            with self.repository as repo:
-                result = self._run_incremental_load(
-                    start_date=opts.start_date,
-                    end_date=opts.end_date,
-                    repo=repo,
-                )
-                if self.config.stock.auto_repair_gaps and not opts.skip_auto_repair:
-                    repair_result = self._run_gap_repair(end_date=opts.end_date, repo=repo)
-                    return self._merge_results(result, repair_result)
-            return result
-
-        return self._run_full_load()
+            return self._run_full_load()
+        finally:
+            self._markets = None
 
     def _get_last_date_from_db(self, repo: DuckDBRepository | None = None) -> str | None:
         """데이터베이스에서 가장 최신 날짜를 조회 (레거시 폴백용)."""
@@ -155,6 +158,7 @@ class StockDataPipeline:
             gap_tolerance_days=self.config.stock.gap_tolerance_days,
             ticker_list_path=self.config.stock.ticker_list_path,
             no_data_path=self.config.stock.no_data_path,
+            markets=getattr(self, "_markets", None),
         )
 
     def _run_gap_check(self) -> StockPipelineResult:
@@ -317,7 +321,10 @@ class StockDataPipeline:
         print(f"증분 수집 시작: start_date={start_date or 'per-ticker'}, end_date={end_date}")
 
         max_per_market = self.config.stock.max_stocks
-        tickers_df = self.provider.get_all_tickers(max_per_market=max_per_market)
+        tickers_df = self.provider.get_all_tickers(
+            max_per_market=max_per_market,
+            markets=getattr(self, "_markets", None),
+        )
         tickers = tickers_df["Ticker"].tolist()
         ticker_to_market = dict(zip(tickers_df["Ticker"], tickers_df["Market"], strict=True))
 

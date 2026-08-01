@@ -296,6 +296,7 @@ def run_stock_pipeline_cli(
             start_date=args.start_date,
             end_date=args.end_date,
             skip_auto_repair=args.no_gap_repair,
+            markets=args.market,
         )
     )
     return 0
@@ -418,10 +419,16 @@ def run_stock_main_cli(args: argparse.Namespace) -> int:
     if args.check_gaps or args.repair_gaps:
         if args.check_gaps:
             logger.info("모드: 공백 탐지 (--check-gaps)")
-            pipeline.run(PipelineRunOptions(check_gaps_only=True))
+            pipeline.run(PipelineRunOptions(check_gaps_only=True, markets=args.market))
         else:
             logger.info("모드: 공백 복구 (--repair-gaps)")
-            pipeline.run(PipelineRunOptions(repair_gaps=True, end_date=args.end_date))
+            pipeline.run(
+                PipelineRunOptions(
+                    repair_gaps=True,
+                    end_date=args.end_date,
+                    markets=args.market,
+                )
+            )
         logger.info("Q-SEED CLI 실행 완료")
         return 0
 
