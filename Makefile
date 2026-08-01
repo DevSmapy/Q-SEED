@@ -1,4 +1,4 @@
-.PHONY: help setup sync profiles env pre-commit test dbt dashboard web docker-build docker-up docker-down docker-shell docker-logs
+.PHONY: help setup sync profiles env pre-commit test dbt dashboard web scheduled-update docker-build docker-up docker-down docker-shell docker-logs
 
 help:
 	@echo "Q-SEED 개발 환경"
@@ -9,6 +9,7 @@ help:
 	@echo "  make dbt          stocks dbt 모델 실행"
 	@echo "  make dashboard    Streamlit stocks 리뷰 대시보드"
 	@echo "  make web          로컬 DuckDB 조회 웹 서버"
+	@echo "  make scheduled-update SESSION=kr|us  세션별 증분 업데이트 (cron용)"
 	@echo "  make docker-build Docker 이미지 빌드"
 	@echo "  make docker-up    Docker 컨테이너 시작"
 	@echo "  make docker-shell 컨테이너 셸 접속"
@@ -40,6 +41,11 @@ dashboard:
 
 web:
 	PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db
+
+# SESSION=kr|us (default kr)
+SESSION ?= kr
+scheduled-update:
+	./scripts/scheduled_update.sh $(SESSION)
 
 docker-build:
 	docker compose build
