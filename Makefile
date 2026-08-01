@@ -45,7 +45,7 @@ web:
 # SESSION=kr|us (default kr)
 SESSION ?= kr
 scheduled-update:
-	./scripts/scheduled_update.sh $(SESSION)
+	./scripts/scheduled_update.sh "$(SESSION)"
 
 docker-build:
 	docker compose build

@@ -271,7 +271,10 @@ def run_stock_pipeline_cli(
         pipeline.config.stock.max_stocks = 1000000
         mode = "incremental"
         logger.info("모드: 데이터베이스 증분 업데이트 (--update-db)")
-        logger.info("- 모든 지원 시장의 모든 티커 수집 시도")
+        if args.market:
+            logger.info("- 대상 시장: %s", ", ".join(args.market))
+        else:
+            logger.info("- 모든 지원 시장의 모든 티커 수집 시도")
         logger.info("- 청크별 티커 last_date 기준 수집 (전역 MAX Date 미사용)")
         if pipeline.config.stock.auto_repair_gaps and not args.no_gap_repair:
             logger.info("- 완료 후 시장별 공백 티커 자동 복구")

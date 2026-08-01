@@ -27,7 +27,14 @@ class GapRunContext:
 
 
 def _filter_lagging(lagging: pd.DataFrame, markets: list[str] | None) -> pd.DataFrame:
-    if markets is None or lagging.empty:
+    if markets is None:
+        return lagging
+    from src.providers.stock_provider import StockProvider
+
+    for market in markets:
+        if market not in StockProvider.MARKETS:
+            raise ValueError(f"지원하지 않는 시장입니다: {market}")
+    if lagging.empty:
         return lagging
     return lagging[lagging["Market"].isin(markets)].copy()
 
