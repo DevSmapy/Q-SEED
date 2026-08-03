@@ -76,19 +76,29 @@ class StockProvider:
 
         return result_df
 
-    def get_all_tickers(self, max_per_market: int | None = None) -> pd.DataFrame:
-        """지원하는 모든 시장의 티커 목록 조회 (중복 제거 포함).
+    def get_all_tickers(
+        self,
+        max_per_market: int | None = None,
+        markets: list[str] | None = None,
+    ) -> pd.DataFrame:
+        """지원 시장(또는 지정 시장)의 티커 목록 조회 (중복 제거 포함).
 
         여러 시장에 중복 포함된 종목의 경우, 하나의 시장 정보만 유지합니다.
 
         Args:
             max_per_market: 시장당 최대 종목 수
+            markets: 조회할 시장 이름 목록 (None이면 전체)
 
         Returns:
-            모든 시장의 티커가 중복 없이 합쳐진 DataFrame
+            티커가 중복 없이 합쳐진 DataFrame
         """
+        selected = list(self.MARKETS) if markets is None else markets
+        for market in selected:
+            if market not in self.MARKETS:
+                raise ValueError(f"지원하지 않는 시장입니다: {market}")
+
         dfs = []
-        for market in self.MARKETS:
+        for market in selected:
             try:
                 df = self.get_market_tickers(market, max_count=max_per_market)
                 dfs.append(df)

@@ -124,6 +124,9 @@ uv run qseed --run-stock-pipeline --download-period 10y --max-stocks 500
 # 증분 업데이트 (티커별 last_date 기준, 종료 후 공백 자동 복구)
 uv run python -m src.qseed.cli --update-db --data-dir ./data
 
+# 시장만 증분 (cron 세션용)
+uv run qseed --update-db --data-dir ./data --market KOSPI --market KOSDAQ --market KONEX
+
 # 공백만 탐지 (수집 없음)
 uv run python -m src.qseed.cli --check-gaps --data-dir ./data
 
@@ -144,6 +147,35 @@ uv run python -m src.qseed.cli --build-db --data-dir ./data
 `--check-gaps` / `--repair-gaps`는 **시장별 최신일** 대비 `gap_tolerance_days`(기본 5일) 이상 뒤처진 티커만 대상으로 합니다. 미국 7/2 vs 한국 7/6 같은 휴장 차이는 공백으로 잡지 않습니다.
 
 전체 CLI 옵션·환경 변수는 [cli-reference.md](cli-reference.md#1-데이터-수집)를 참고하세요.
+
+### 1a. 스케줄 증분 (cron)
+
+장 마감 직후 yfinance 반영이 늦을 수 있어 **버퍼를 둔 시각**을 씁니다. 스크립트는 `--update-db`만 실행합니다 (market pipeline·dbt는 수동).
+
+스케줄 시각은 **`Asia/Seoul` 기준**입니다. crontab에서 `TZ=Asia/Seoul`을 명시하세요. 호스트가 다른 타임존이면 해당 플랫폼에서 지원하는 방식으로 동일 시각을 맞춥니다(예: systemd `OnCalendar=` + `Timezone=Asia/Seoul`). 스크립트는 `TZ`가 비어 있으면 `Asia/Seoul`을 기본으로 씁니다.
+
+| 세션 | 시장                       | 권장 cron (KST)              |
+| ---- | -------------------------- | ---------------------------- |
+| `kr` | KOSPI, KOSDAQ, KONEX       | `0 16 * * 1-5` (평일 16:00)  |
+| `us` | NASDAQ, NYSE, AMEX, S&P500 | `30 6 * * 2-6` (화–토 06:30) |
+
+US는 정규 마감이 한국 시각 **익일 새벽**이라 요일을 **화–토**로 둡니다 (`1-5`면 금요일 마감분을 놓침).
+
+```bash
+# 수동
+make scheduled-update SESSION=kr
+./scripts/scheduled_update.sh us
+
+# crontab 예 (레포 절대경로로 바꿀 것; TZ를 줄마다 또는 crontab 상단에 설정)
+# TZ=Asia/Seoul
+# 0 16 * * 1-5 cd /path/to/Q-SEED && TZ=Asia/Seoul ./scripts/scheduled_update.sh kr
+# 30 6 * * 2-6 cd /path/to/Q-SEED && TZ=Asia/Seoul ./scripts/scheduled_update.sh us
+```
+
+데이터 루트: `DATA_DIR` > `QSEED_STOCK_BASE_DIR` > `./data` (락·로그·`--data-dir` 동일).
+로그: `<data>/data_log/scheduled_update_<session>_YYYYMMDD.log` (파일명·타임스탬프도 `TZ` 따름).
+동시 실행 방지: 공유 `mkdir` 락(같은 DuckDB 쓰기 직렬화). 이미 락이 있으면 세션 로그에 skip 후 **exit 75**. 소유자 토큰이 일치할 때만 EXIT에서 락을 제거합니다.
+Mac이 sleep이면 cron은 건너뜁니다. Airflow 등 오케스트레이터는 이 레포에 넣지 않습니다.
 
 ### 1b. 시장 지표
 
