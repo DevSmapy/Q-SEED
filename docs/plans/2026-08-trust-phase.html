@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Q-SEED 1단계 — 신뢰할 수 있게 만들기</title>
+    <style>
+      :root {
+        --ink: #1c1917;
+        --muted: #57534e;
+        --line: #e7e5e4;
+        --paper: #faf7f2;
+        --card: #fffdf9;
+        --accent: #0f766e;
+        --accent-soft: #ccfbf1;
+        --warn: #9a3412;
+        --warn-soft: #ffedd5;
+        --skip: #44403c;
+        --skip-soft: #f5f5f4;
+        --good: #166534;
+        --good-soft: #dcfce7;
+        --shadow: 0 1px 2px rgb(28 25 23 / 6%), 0 8px 24px rgb(28 25 23 / 6%);
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --sans: "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", system-ui,
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: var(--sans);
+        line-height: 1.55;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code,
+      kbd {
+        font-family: var(--mono);
+        font-size: 0.86em;
+        background: var(--skip-soft);
+        padding: 0.08em 0.35em;
+        border-radius: 4px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      nav {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        padding: 28px 18px;
+        border-right: 1px solid var(--line);
+        background: #f3efe7;
+        overflow: auto;
+      }
+
+      nav .brand {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      nav strong {
+        display: block;
+        margin-bottom: 18px;
+        font-size: 15px;
+      }
+
+      nav a {
+        display: block;
+        color: var(--ink);
+        text-decoration: none;
+        padding: 6px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+
+      nav a:hover {
+        background: rgb(15 118 110 / 10%);
+      }
+
+      main {
+        max-width: 980px;
+        padding: 40px 48px 80px;
+      }
+
+      .kicker {
+        color: var(--accent);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        font-size: 13px;
+      }
+
+      h1 {
+        font-size: 2rem;
+        line-height: 1.25;
+        margin: 6px 0 12px;
+      }
+
+      h2 {
+        margin-top: 48px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+        font-size: 1.35rem;
+      }
+
+      h3 {
+        margin-top: 28px;
+        font-size: 1.05rem;
+      }
+
+      p.lead {
+        font-size: 1.05rem;
+        color: var(--muted);
+        max-width: 62ch;
+      }
+
+      .hero-grid,
+      .cards,
+      .options,
+      .steps {
+        display: grid;
+        gap: 12px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1.4fr 1fr;
+        margin: 24px 0 8px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .pill {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 999px;
+      }
+
+      .pill.do {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .pill.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+
+      .pill.skip {
+        background: var(--skip-soft);
+        color: var(--skip);
+      }
+
+      .pill.good {
+        background: var(--good-soft);
+        color: var(--good);
+      }
+
+      ul.tight {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      ul.tight li {
+        margin: 4px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      th {
+        background: #f5f0e8;
+        font-size: 12px;
+        letter-spacing: 0.03em;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .mismatch td:nth-child(n + 2) {
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .callout {
+        border-left: 4px solid var(--warn);
+        background: var(--warn-soft);
+        padding: 12px 14px;
+        border-radius: 0 10px 10px 0;
+        margin: 16px 0;
+      }
+
+      .callout.ok {
+        border-left-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .callout.skip {
+        border-left-color: var(--skip);
+        background: var(--skip-soft);
+      }
+
+      .work {
+        display: grid;
+        grid-template-columns: 160px minmax(0, 1fr);
+        gap: 16px;
+        padding: 18px 0;
+        border-bottom: 1px dashed var(--line);
+      }
+
+      .work:last-of-type {
+        border-bottom: 0;
+      }
+
+      .options {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .option h4 {
+        margin: 0 0 8px;
+        font-size: 13px;
+      }
+
+      .option.pick {
+        outline: 2px solid var(--accent);
+      }
+
+      .steps {
+        grid-template-columns: repeat(5, 1fr);
+        margin-top: 12px;
+      }
+
+      .step {
+        min-height: 140px;
+      }
+
+      .step .n {
+        font-weight: 800;
+        color: var(--accent);
+        font-size: 12px;
+      }
+
+      .todo {
+        list-style: none;
+        padding: 0;
+      }
+
+      .todo li {
+        display: grid;
+        grid-template-columns: 22px 1fr;
+        gap: 8px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .todo input {
+        margin-top: 4px;
+      }
+
+      footer {
+        margin-top: 40px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 920px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        nav {
+          position: relative;
+          height: auto;
+        }
+
+        main {
+          padding: 24px 18px 48px;
+        }
+
+        .hero-grid,
+        .options,
+        .steps,
+        .work {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <nav>
+        <div class="brand">Q-SEED plan</div>
+        <strong>1단계 · 신뢰</strong>
+        <a href="#goal">목표</a>
+        <a href="#now">지금 상태</a>
+        <a href="#mismatch">수치 불일치</a>
+        <a href="#brainstorm">브레인스토밍</a>
+        <a href="#sequence">권장 순서</a>
+        <a href="#wont">하지 않을 것</a>
+        <a href="#questions">열린 질문</a>
+        <a href="#todos">이후 할 일</a>
+      </nav>
+      <main>
+        <p class="kicker">Working plan · 2026-08 · 구현 전</p>
+        <h1>현재 Q-SEED를 신뢰할 수 있게 만들기</h1>
+        <p class="lead">
+          기능은 이미 Phase 1–4까지 있다. 문제는 “이 숫자·이 명령을 다시 돌리면
+          같은 이야기가 나오는가”다. 이번 단계는 새 전략이 아니라,
+          <b>검증·재현·문서·설치</b>를 한 줄로 잇는 일이다. 파일 정리는 후순위.
+        </p>
+
+        <div class="hero-grid">
+          <div class="card">
+            <span class="pill do">이번 단계</span>
+            <ul class="tight">
+              <li>GitHub Actions가 린트만이 아니라 테스트를 돌리게</li>
+              <li>백테스트 결과가 코드 버전·데이터 스냅샷과 같이 남게</li>
+              <li>케이스 스터디 숫자와 산출물 경로가 코드와 맞게</li>
+              <li>dbt가 설명만이 아니라 깨지면 실패하는 테스트를 갖게</li>
+              <li>클론 → 설치 → 확인이 문서대로 끝나게</li>
+            </ul>
+          </div>
+          <div class="card">
+            <span class="pill skip">미룸</span>
+            <ul class="tight">
+              <li>미사용 파일 삭제 (<code>metrics_calc.sql</code> 등)</li>
+              <li>의존성 다이어트 (PySpark, Jupyter…)</li>
+              <li>Hosted API / 공개 데모</li>
+              <li>CLI subcommand 재설계</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout ok">
+          이 HTML은 브레인스토밍용이다. 코드 변경은 아직 없다. 아래 권장안을
+          고르거나 바꾸면, 그다음 PR에서 한 줄씩 구현한다.
+        </div>
+
+        <h2 id="now">지금 상태 — 무엇이 약한가</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>영역</th>
+              <th>있는 것</th>
+              <th>없는 것 / 어긋난 것</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CI</td>
+              <td>
+                <code>.github/workflows/lint.yml</code> — pre-commit (ruff,
+                mypy, prettier)
+              </td>
+              <td>
+                pytest 없음 · dbt parse/test 없음 · <code>uv sync</code>가
+                Spark·Jupyter까지 끌어 CI가 무거움
+              </td>
+            </tr>
+            <tr>
+              <td>재현성</td>
+              <td>
+                <code>uv.lock</code>, 백테스트
+                <code>manifest.json</code> (시장·전략·지표)
+              </td>
+              <td>
+                git SHA · dirty 여부 · 패키지 버전 · DuckDB fingerprint 없음.
+                yfinance 라이브 수집은 비트 단위로 다시 만들 수 없음
+              </td>
+            </tr>
+            <tr>
+              <td>문서 수치</td>
+              <td>2026-07 KR 케이스 스터디 3편</td>
+              <td>
+                Phase 3 <code>reversal_5d</code>와 Phase 4
+                <code>equal_weight</code>가 “동일 조건”인데 숫자가 다름. 산출물
+                경로도 코드와 불일치
+              </td>
+            </tr>
+            <tr>
+              <td>dbt</td>
+              <td>stocks/market 모델, 짧은 <code>schema.yml</code></td>
+              <td>
+                테스트는 <code>dim_stocks__security</code>의
+                <code>not_null</code> 3개뿐. <code>dbt/tests/</code> 없음. CI에서
+                안 돈다
+              </td>
+            </tr>
+            <tr>
+              <td>설치</td>
+              <td><code>make setup</code>, Docker, getting-started</td>
+              <td>
+                clone URL이 플레이스홀더. 설치 후 스모크가
+                <code>--help</code>뿐. CLI 표기가
+                <code>uv run qseed</code> /
+                <code>python -m src.qseed.cli</code>로 섞임. Docker 포트
+                8080 vs 웹 8000 / Streamlit 8501
+              </td>
+            </tr>
+            <tr>
+              <td>단위 테스트</td>
+              <td>
+                합성 데이터 pytest 6파일 (보안 메타, gap, IC, 시장 지표 등)
+              </td>
+              <td>
+                백테스트 엔진·manifest 회귀가 거의 없음. CI가 돌리지 않아
+                로컬에서만 지켜짐
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="mismatch">백테스트 문서 수치 — 가장 눈에 띄는 균열</h2>
+        <p>
+          두 문서 모두 KOSPI·KOSDAQ / <code>reversal_5d</code> / 롱숏 / 21일
+          리밸런싱이라고 적혀 있다. Phase 4는 “Phase 3와 동일한 조건”이라고
+          명시한다.
+        </p>
+        <table class="mismatch">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Phase 3 백테스트</th>
+              <th>Phase 4 equal_weight</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CAGR</td>
+              <td>+0.32%</td>
+              <td>+7.63%</td>
+            </tr>
+            <tr>
+              <td>MDD</td>
+              <td>−61.7%</td>
+              <td>−39.6%</td>
+            </tr>
+            <tr>
+              <td>Sharpe</td>
+              <td>+0.12</td>
+              <td>+0.47</td>
+            </tr>
+            <tr>
+              <td>문서가 가리키는 파일</td>
+              <td><code>backtest_summary.json</code></td>
+              <td><code>optimize_summary.json</code></td>
+            </tr>
+            <tr>
+              <td>코드가 실제로 쓰는 파일</td>
+              <td colspan="2">
+                <code>runs_index.json</code> +
+                <code>{run_id}/manifest.json</code> +
+                <code>summary.parquet</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          코드상 <code>equal_weight</code>는 <code>opt_max_assets=50</code>
+          상한을 타지 않는다. 엔진이 최적화 메서드일 때만 종목을 자른다. 그래서
+          “50종목 제한 때문에 숫자가 갈렸다”는 1순위 가설이 아니다.
+        </div>
+
+        <h3>가설 (검증 전에 단정하지 말 것)</h3>
+        <div class="cards" style="grid-template-columns: 1fr 1fr">
+          <div class="card">
+            <b>A. 데이터 빈티지가 다르다</b>
+            <p>
+              2026-07 문서와 이후 DB 갱신이 섞였거나, 기간·유니버스가 로그에만
+              있고 문서에 없다.
+            </p>
+          </div>
+          <div class="card">
+            <b>B. 손복사</b>
+            <p>
+              가리키는 JSON 파일이 코드에 존재하지 않는다. 숫자를 로그에서 옮긴
+              뒤 경로를 추정했을 가능성이 크다.
+            </p>
+          </div>
+          <div class="card">
+            <b>C. 실행 플래그가 미묘하게 다름</b>
+            <p>
+              비용, 날짜 필터, 시장 목록, 초기 자본은 같아 보여도 한쪽만
+              <code>--data-dir</code> / 기간을 넣었을 수 있다.
+            </p>
+          </div>
+          <div class="card">
+            <b>D. 팩터 IC 산출물 경로도 같은 패턴</b>
+            <p>
+              문서는 <code>case_study_summary.json</code>, 코드는
+              <code>data/factor_analysis/{factor}/analysis_report.json</code>.
+            </p>
+          </div>
+        </div>
+
+        <h2 id="brainstorm">브레인스토밍 — 여섯 줄, 각각 고를 것</h2>
+        <p>
+          각 줄에서 <span class="pill do">권장</span>만 이번 단계에 넣는다. 나머지는
+          명시적으로 버린다.
+        </p>
+
+        <div class="work">
+          <div>
+            <span class="pill do">1 · CI</span>
+            <h3>GitHub Actions</h3>
+          </div>
+          <div>
+            <div class="options">
+              <div class="card option">
+                <h4>A. 기존 워크플로에 pytest만 추가</h4>
+                <p>한 잡이 더 길어진다. 실패 원인이 린트인지 테스트인지 흐려진다.</p>
+              </div>
+              <div class="card option pick">
+                <h4>B. lint / test 잡 분리 ★</h4>
+                <p>
+                  지금 YAML을 두 잡으로. <code>uv sync --frozen</code> + 캐시.
+                  테스트는 <code>uv run pytest</code>만. dbt는 데이터가 생기면
+                  다음.
+                </p>
+              </div>
+              <div class="card option">
+                <h4>C. 3.11×3.12 매트릭스 + dbt 풀런</h4>
+                <p>
+                  웨어하우스 없는 CI에서 <code>dbt run</code>은 실패한다. 매트릭스는
+                  시간만 늘린다.
+                </p>
+              </div>
+            </div>
+            <p>
+              <b>권장:</b> B. 주석으로 남은 <code>braches</code> 메모도 지운다.
+              README에 CI 배지는 원하면 같이. Spark를 extra로 빼는 일은 설치
+              개선과 겹치면 후속.
+            </p>
+          </div>
+        </div>
+
+        <div class="work">
+          <div>
+            <span class="pill do">2 · 재현</span>
+            <h3>결과 재현성</h3>
+          </div>
+          <div>
+            <div class="options">
+              <div class="card option pick">
+                <h4>A. provenance만 기록 ★</h4>
+                <p>
+                  manifest에 git SHA, dirty, 패키지 버전, DuckDB fingerprint
+                  (행 수 · max date · 파일 mtime/size). 라이브 yfinance를 비트
+                  동일하게 만들겠다고 약속하지 않는다.
+                </p>
+              </div>
+              <div class="card option">
+                <h4>B. 소형 fixture DB를 git에</h4>
+                <p>
+                  CI 골든 테스트용으로는 좋지만 용량·라이선스·유지비가 생긴다.
+                  dbt 테스트와 묶을 때만 검토.
+                </p>
+              </div>
+              <div class="card option">
+                <h4>C. 전체 Parquet 스냅샷 커밋</h4>
+                <p>연구 덤프를 레포에 넣는 일. 하지 않는다.</p>
+              </div>
+            </div>
+            <p>
+              <b>권장:</b> A를 백테스트·팩터 리포트 양쪽에. 엔진 자체는 합성
+              데이터 pytest로 “같은 입력이면 같은 CAGR”만 고정한다.
+            </p>
+          </div>
+        </div>
+
+        <div class="work">
+          <div>
+            <span class="pill warn">3 · 문서</span>
+            <h3>수치 불일치</h3>
+          </div>
+          <div>
+            <div class="options">
+              <div class="card option">
+                <h4>A. 지금 DB로 다시 돌려 숫자를 교체</h4>
+                <p>
+                  최신이 되지만 2026-07 연구가 사라진다. “그 달의 결과”가 필요한
+                  문서면 안 맞다.
+                </p>
+              </div>
+              <div class="card option pick">
+                <h4>B. 역사로 남기고 출처를 못 박기 ★</h4>
+                <p>
+                  숫자는 당시 런의 값으로 유지하되, 재실행하면 달라질 수 있다고
+                  쓰고, 실제 산출물 경로·설정·(가능하면) SHA/fingerprint를
+                  적는다. 다시 돌릴 수 없으면 “재현 불가, 손복사”라고 표시.
+                </p>
+              </div>
+              <div class="card option">
+                <h4>C. 표만 지우고 방법만 남긴다</h4>
+                <p>가장 정직하지만 케이스 스터디의 쓸모가 줄어든다.</p>
+              </div>
+            </div>
+            <p>
+              <b>권장:</b> 먼저 로컬 <code>runs_index.json</code> / 로그와 대조해
+              A/B/C 가설을 한 번에 판정. 같은 런이면 숫자를 맞추고, 다른 런이면
+              문서를 분리한다. 그와 별개로 경로·CLI 표기는 코드에 맞춘다
+              (<code>uv run qseed</code>).
+            </p>
+          </div>
+        </div>
+
+        <div class="work">
+          <div>
+            <span class="pill do">4 · 기록</span>
+            <h3>스냅샷 · 코드 버전</h3>
+          </div>
+          <div>
+            <p>manifest에 넣을 최소 필드 (스키마 1.1 정도로 올림):</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>필드</th>
+                  <th>왜</th>
+                  <th>만들지 않는 것</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>code.git_sha</code> / <code>dirty</code></td>
+                  <td>어떤 커밋이 그 숫자를 냈는지</td>
+                  <td>전체 <code>uv.lock</code> 덤프</td>
+                </tr>
+                <tr>
+                  <td><code>code.package_version</code></td>
+                  <td>pyproject 0.1.0 등</td>
+                  <td>모든 transitive 버전 목록</td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>data.db_path</code>, <code>row_count</code>,
+                    <code>max_date</code>, <code>bytes</code>
+                  </td>
+                  <td>같은 파일이 맞는지 빠르게 확인</td>
+                  <td>테이블 전체 해시 (느리고 이득 적음)</td>
+                </tr>
+                <tr>
+                  <td><code>data.markets</code> (이미 있음)</td>
+                  <td>유니버스</td>
+                  <td>티커 전체 리스트를 manifest에</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              팩터 쪽 <code>analysis_report.json</code>에도 같은 블록을 넣으면
+              케이스 스터디가 한 형식을 공유한다.
+            </p>
+          </div>
+        </div>
+
+        <div class="work">
+          <div>
+            <span class="pill do">5 · dbt</span>
+            <h3>테스트와 문서</h3>
+          </div>
+          <div>
+            <div class="options">
+              <div class="card option pick">
+                <h4>A. schema.yml 테스트만 ★</h4>
+                <p>
+                  grain <code>unique</code> + <code>not_null</code>, Market /
+                  sector_status <code>accepted_values</code>, source
+                  <code>raw_stocks</code> 키 컬럼. 로컬에서
+                  <code>dbt test</code>. CI는 웨어하우스 없이
+                  <code>dbt parse</code> 정도.
+                </p>
+              </div>
+              <div class="card option">
+                <h4>B. 싱글톤 fixture DuckDB + CI dbt test</h4>
+                <p>
+                  가장 튼튼하지만 fixture를 계속 맞춰야 한다. A가 자리를 잡은 뒤.
+                </p>
+              </div>
+              <div class="card option">
+                <h4>C. dbt docs 사이트 호스팅</h4>
+                <p>로컬 엔진에 공개 문서 사이트가 필요 없다.</p>
+              </div>
+            </div>
+            <p>
+              무거운 <code>fct_stocks__price_factors</code>는 계속
+              <code>enabled: false</code>. 켜지 않은 모델에 테스트를 잔뜩 달지
+              않는다.
+            </p>
+          </div>
+        </div>
+
+        <div class="work">
+          <div>
+            <span class="pill do">6 · 설치</span>
+            <h3>Quickstart</h3>
+          </div>
+          <div>
+            <div class="options">
+              <div class="card option pick">
+                <h4>A. 문서·Makefile만 고친다 ★</h4>
+                <p>
+                  실제 clone URL, 설치 후
+                  <code>make test</code> / <code>uv run qseed --help</code>,
+                  “연구하려면 DB가 필요하다”는 한 단락,
+                  <code>--build-db --max-stocks 20</code> 스모크. CLI는
+                  <code>uv run qseed</code>로 통일. Docker 포트 설명을 바로잡는다.
+                </p>
+              </div>
+              <div class="card option">
+                <h4>B. 샘플 DB를 레포에</h4>
+                <p>클론 즉시 대시보드가 켜지지만 git에 데이터가 생긴다. 후순위.</p>
+              </div>
+              <div class="card option">
+                <h4>C. 의존성 extra 분리까지</h4>
+                <p>
+                  설치 시간을 줄이는 진짜 지름길이나, 파일/의존성 정리와 같다.
+                  이번 단계 핵심이 아니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h2 id="sequence">권장 구현 순서 (이 플랜 다음 PR들)</h2>
+        <p>
+          한 PR에 여섯 줄을 몰지 않는다. 각각이 혼자 merge 가능해야 한다.
+        </p>
+        <div class="steps">
+          <div class="card step">
+            <div class="n">PR 0 · 지금</div>
+            <b>플랜만</b>
+            <p>이 HTML. 구현 없음.</p>
+          </div>
+          <div class="card step">
+            <div class="n">PR 1</div>
+            <b>CI pytest</b>
+            <p>lint 잡 유지, test 잡 추가. 로컬과 같은 명령.</p>
+          </div>
+          <div class="card step">
+            <div class="n">PR 2</div>
+            <b>manifest 1.1</b>
+            <p>git + DB fingerprint. 합성 테스트 하나.</p>
+          </div>
+          <div class="card step">
+            <div class="n">PR 3</div>
+            <b>케이스 스터디</b>
+            <p>가설 판정, 숫자/경로/CLI 정렬.</p>
+          </div>
+          <div class="card step">
+            <div class="n">PR 4–5</div>
+            <b>dbt 테스트 · quickstart</b>
+            <p>schema tests, getting-started 스모크. 병렬 가능.</p>
+          </div>
+        </div>
+
+        <div class="callout ok">
+          성공 기준: 낯선 클론에서 <code>make setup && make test</code>가 통과하고,
+          백테스트 폴더를 열면 “어느 커밋, 어느 DB”가 보이며, 문서를 따라 쳐도
+          존재하지 않는 JSON을 찾지 않는다.
+        </div>
+
+        <h2 id="wont">하지 않을 것</h2>
+        <ul class="tight">
+          <li>미사용 파일 삭제 — 이미 후보를 알아 두었고, 신뢰 작업 다음에.</li>
+          <li>yfinance를 비트 단위로 재현하겠다고 문서에 적기.</li>
+          <li>전체 유니버스 Parquet / Spark warehouse를 git에 넣기.</li>
+          <li>dbt docs 호스팅, 커버리지 게이트, Python 매트릭스.</li>
+          <li>공개 API, TUI, CLI argparse → subcommand 전환.</li>
+        </ul>
+
+        <h2 id="questions">사람만 고를 수 있는 것</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>질문</th>
+              <th>플랜의 기본값</th>
+              <th>다른 선택</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2026-07 숫자는 다시 돌릴 것인가?</td>
+              <td>
+                로컬 산출물로 출처를 확인한 뒤, 같은 런이면 유지·다른 런이면
+                역사로 표시
+              </td>
+              <td>현재 DB로 전면 재실행해 표를 교체</td>
+            </tr>
+            <tr>
+              <td>CI에 dbt를 넣을 것인가?</td>
+              <td>1차는 pytest만. <code>dbt parse</code>는 여유 되면</td>
+              <td>fixture DB를 만들어 <code>dbt test</code></td>
+            </tr>
+            <tr>
+              <td>샘플 웨어하우스를 git에?</td>
+              <td>아니오</td>
+              <td>tiny DuckDB (수 MB)만 예외</td>
+            </tr>
+            <tr>
+              <td>의존성 extra 분리?</td>
+              <td>이번 단계 아님</td>
+              <td>설치가 너무 느리면 PR 5에 일부만</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="todos">이후 PR에서 할 일</h2>
+        <p>이 문서 PR의 범위가 아니다. 구현 체크리스트다.</p>
+        <ul class="todo">
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>CI</b> — <code>lint.yml</code>을 lint/test 잡으로 나누고
+              <code>uv run pytest</code>를 PR마다 실행. <code>--frozen</code>
+              캐시.</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>manifest</b> — git SHA/dirty, package version, DuckDB
+              row_count/max_date/size를 백테스트·팩터 리포트에 기록. 단위
+              테스트 1개.</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>수치</b> — 로컬 런과 2026-07 표를 대조해 가설 판정. 문서
+              숫자·해석을 그에 맞게. 없는
+              <code>*_summary.json</code> 경로를 실제 산출물로 교체.</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>CLI 표기</b> — 가이드·케이스 스터디를
+              <code>uv run qseed</code>로 통일.</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>dbt</b> — 핵심 모델 grain unique/not_null, Market·sector_status
+              accepted_values, raw_stocks 키 컬럼. <code>make dbt-test</code>.</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>quickstart</b> — clone URL, 설치 후
+              <code>make test</code>, DB 없는 상태와
+              <code>--max-stocks</code> 스모크 구분, Docker 포트 정정.</span
+            >
+          </li>
+        </ul>
+
+        <footer>
+          파일 위치:
+          <code>docs/plans/2026-08-trust-phase.html</code>
+          · 브라우저로 연다 (GitHub는 HTML을 렌더하지 않음).
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
