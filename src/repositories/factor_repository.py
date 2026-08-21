@@ -164,7 +164,8 @@ def _replace_factor_rows(
     factor_name: str,
 ) -> None:
     """단일 factor_name 행을 교체 (백테스트 run_id 패턴과 동일)."""
-    conn.register(register_name, frame)
+    prepared = _prepare_factor_frame(frame)
+    conn.register(register_name, prepared)
     try:
         existing = cast(
             list[tuple[str]],
@@ -178,28 +179,31 @@ def _replace_factor_rows(
             ).fetchall(),
         )
         if existing:
-            columns = [
-                str(row[0])
-                for row in cast(
-                    list[tuple[object, ...]],
-                    conn.execute(f"DESCRIBE {table_name}").fetchall(),
-                )
-            ]
-            if "factor_name" not in columns:
-                # 레거시 CREATE OR REPLACE 스키마 → 한 번 버리고 다중 팩터 스키마로 전환
+            described = cast(
+                list[tuple[object, ...]],
+                conn.execute(f"DESCRIBE {table_name}").fetchall(),
+            )
+            columns = [str(row[0]) for row in described]
+            types = {str(row[0]): str(row[1]).upper() for row in described}
+            if "factor_name" not in columns or _factor_table_types_incompatible(types):
+                # 레거시/빈-프레임 추론으로 INTEGER가 된 스키마는 버리고 재생성
                 conn.execute(f"DROP TABLE {table_name}")
                 existing = []
 
         if not existing:
+            # 빈 프레임으로 CREATE하면 DuckDB가 Ticker 등을 INTEGER로 추론한다.
+            if prepared.empty:
+                return
             conn.execute(
                 f"""
                 CREATE TABLE {table_name} AS
-                SELECT * FROM {register_name} WHERE 1 = 0
+                SELECT * FROM {register_name}
                 """
             )
+            return
 
         conn.execute(f"DELETE FROM {table_name} WHERE factor_name = ?", [factor_name])
-        if not frame.empty:
+        if not prepared.empty:
             conn.execute(
                 f"""
                 INSERT INTO {table_name} BY NAME
@@ -208,3 +212,22 @@ def _replace_factor_rows(
             )
     finally:
         conn.unregister(register_name)
+
+
+_STRING_FACTOR_COLUMNS = ("Ticker", "Market", "factor_name")
+_INTEGER_TYPE_NAMES = frozenset({"INTEGER", "BIGINT", "HUGEINT", "SMALLINT", "TINYINT"})
+
+
+def _prepare_factor_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    """DuckDB가 티커·팩터명을 INTEGER로 추론하지 않도록 문자열 컬럼을 고정한다."""
+    prepared = frame.copy()
+    for column in _STRING_FACTOR_COLUMNS:
+        if column in prepared.columns:
+            prepared[column] = [
+                None if pd.isna(value) else str(value) for value in prepared[column].tolist()
+            ]
+    return prepared
+
+
+def _factor_table_types_incompatible(types: dict[str, str]) -> bool:
+    return any(types.get(column) in _INTEGER_TYPE_NAMES for column in _STRING_FACTOR_COLUMNS)

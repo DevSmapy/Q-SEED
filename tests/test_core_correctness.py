@@ -114,6 +114,125 @@ def test_factor_save_keeps_other_factors(tmp_path: Path) -> None:
         assert names == ["factor_a", "factor_b"]
 
 
+def test_factor_save_recovers_integer_ticker_schema(tmp_path: Path) -> None:
+    """빈 프레임으로 INTEGER 추론된 factor_values에 문자열 티커를 저장할 수 있어야 한다."""
+    db_path = tmp_path / "stocks.db"
+    with FactorRepository(db_path) as repo:
+        repo.conn.execute(
+            """
+            CREATE TABLE factor_values (
+                Date TIMESTAMP,
+                Ticker INTEGER,
+                Market INTEGER,
+                factor_value DOUBLE,
+                factor_name INTEGER
+            )
+            """
+        )
+        empty = pd.DataFrame(columns=["Date", "Ticker", "Market", "factor_value", "factor_name"])
+        repo.save_analysis_tables(
+            FactorAnalysisTables(
+                factor_name="momentum_12_1",
+                factor_values=empty,
+                ic_daily=pd.DataFrame(columns=["Date", "ic", "factor_name"]),
+                ic_summary=pd.DataFrame(
+                    [
+                        {
+                            "factor_name": "momentum_12_1",
+                            "forward_horizon": 21,
+                            "ic_mean": None,
+                            "ic_std": None,
+                            "ic_ir": None,
+                            "hit_rate": None,
+                            "observation_days": 0,
+                        }
+                    ]
+                ),
+                quintile_returns=pd.DataFrame(
+                    columns=["Date", "quintile", "mean_forward_return", "factor_name"]
+                ),
+                quintile_summary=pd.DataFrame(
+                    [
+                        {
+                            "factor_name": "momentum_12_1",
+                            "forward_horizon": 21,
+                            "long_short_spread": None,
+                            "q1_avg_return": None,
+                            "q2_avg_return": None,
+                            "q3_avg_return": None,
+                            "q4_avg_return": None,
+                            "q5_avg_return": None,
+                        }
+                    ]
+                ),
+            )
+        )
+        values = pd.DataFrame(
+            [
+                {
+                    "Date": pd.Timestamp("2024-01-02"),
+                    "Ticker": "000250.KQ",
+                    "Market": "KOSDAQ",
+                    "factor_value": 0.1,
+                }
+            ]
+        )
+        repo.save_analysis_tables(
+            FactorAnalysisTables(
+                factor_name="momentum_6m",
+                factor_values=values,
+                ic_daily=pd.DataFrame({"Date": [pd.Timestamp("2024-01-02")], "ic": [0.1]}),
+                ic_summary=pd.DataFrame(
+                    [
+                        {
+                            "factor_name": "momentum_6m",
+                            "forward_horizon": 21,
+                            "ic_mean": 0.1,
+                            "ic_std": 0.1,
+                            "ic_ir": 1.0,
+                            "hit_rate": 1.0,
+                            "observation_days": 1,
+                        }
+                    ]
+                ),
+                quintile_returns=pd.DataFrame(
+                    {
+                        "Date": [pd.Timestamp("2024-01-02")],
+                        "quintile": [5],
+                        "mean_forward_return": [0.02],
+                    }
+                ),
+                quintile_summary=pd.DataFrame(
+                    [
+                        {
+                            "factor_name": "momentum_6m",
+                            "forward_horizon": 21,
+                            "long_short_spread": 0.02,
+                            "q1_avg_return": 0.0,
+                            "q2_avg_return": 0.0,
+                            "q3_avg_return": 0.0,
+                            "q4_avg_return": 0.0,
+                            "q5_avg_return": 0.02,
+                        }
+                    ]
+                ),
+            )
+        )
+        ticker_type = repo.conn.execute(
+            """
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_name = 'factor_values' AND column_name = 'Ticker'
+            """
+        ).fetchone()
+        assert ticker_type is not None
+        assert str(ticker_type[0]).upper() == "VARCHAR"
+        saved = repo.conn.execute(
+            "SELECT Ticker FROM factor_values WHERE factor_name = 'momentum_6m'"
+        ).fetchone()
+        assert saved == ("000250.KQ",)
+
+
 def test_preview_by_ticker_uses_parameters(tmp_path: Path) -> None:
     db_path = tmp_path / "stocks.db"
     prices = _sample_prices()
