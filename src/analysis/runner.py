@@ -13,6 +13,7 @@ from src.analysis.ic import ICResult, compute_forward_returns, compute_ic
 from src.analysis.quintile import QuintileAnalysisConfig, QuintileResult, compute_quintile_returns
 from src.factors.registry import get_factor
 from src.repositories.factor_repository import FactorAnalysisTables, FactorRepository
+from src.utils.provenance import collect_provenance
 
 logger = logging.getLogger("qseed")
 
@@ -153,6 +154,7 @@ class FactorAnalysisRunner:
 
         report = {
             "factor_name": factor_name,
+            "provenance": collect_provenance(self.repository.db_path),
             "ic_summary": ic_result.summary.to_dict(orient="records"),
             "quintile_summary": quintile_result.spread_summary.to_dict(orient="records"),
         }

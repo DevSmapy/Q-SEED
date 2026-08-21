@@ -30,6 +30,11 @@ class FactorRepository:
     def __init__(self, db_path: Path | str) -> None:
         self._repo = DuckDBRepository(db_path)
 
+    @property
+    def db_path(self) -> Path:
+        """DuckDB 파일 경로."""
+        return self._repo.db_path
+
     def __enter__(self) -> FactorRepository:
         self._repo.__enter__()
         return self
