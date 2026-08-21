@@ -1,10 +1,11 @@
 # dbt DuckDB 연결 설정
 # 사용법: cp profiles.yml.example profiles.yml
+# CI: QSEED_DBT_DUCKDB_PATH=data/ci_stocks.db (합성 DB; 실제 웨어하우스와 분리)
 qseed_dbt:
   target: dev
   outputs:
     dev:
       type: duckdb
-      path: data/stocks.db
+      path: "{{ env_var('QSEED_DBT_DUCKDB_PATH', 'data/stocks.db') }}"
       schema: main
       threads: 4
