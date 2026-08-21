@@ -165,6 +165,7 @@ class BacktestRunner:
                     positions=engine_result.positions,
                     metrics=metrics,
                     export_format=run_config.export_format,
+                    db_path=self.repository.db_path,
                 ),
             )
             export_dir = export_result.run_dir
