@@ -28,7 +28,8 @@ def collect_code_provenance(*, cwd: Path | None = None) -> dict[str, Any]:
         if git_exe is None:
             git_status = "unavailable"
         else:
-            sha_proc = subprocess.run(
+            # Fixed argv after shutil.which; not shell, not user-controlled args.
+            sha_proc = subprocess.run(  # noqa: S603
                 [git_exe, "rev-parse", "HEAD"],
                 cwd=root,
                 capture_output=True,
@@ -41,7 +42,7 @@ def collect_code_provenance(*, cwd: Path | None = None) -> dict[str, Any]:
             else:
                 git_status = "unavailable"
 
-            dirty_proc = subprocess.run(
+            dirty_proc = subprocess.run(  # noqa: S603
                 [git_exe, "status", "--porcelain"],
                 cwd=root,
                 capture_output=True,
