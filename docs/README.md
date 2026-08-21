@@ -35,4 +35,12 @@ Quant Strategy Evaluation & Engine Development — 연구용 백엔드 엔진 �
 | [KR 백테스트 (2026-07)](case-studies/2026-07-kr-backtest.md) | `reversal_5d`·`volatility_60d` 롱숏 |
 | [KR 최적화 (2026-07)](case-studies/2026-07-kr-optimize.md)   | 동일가중 vs min_volatility vs HRP   |
 
+## 진행 중인 플랜
+
+브라우저로 여는 HTML입니다 (GitHub 웹은 소스를 그대로 표시).
+
+| 문서                                           | 설명                                      |
+| ---------------------------------------------- | ----------------------------------------- |
+| [1단계 · 신뢰](plans/2026-08-trust-phase.html) | CI, 재현성, 케이스 스터디 수치, dbt, 설치 |
+
 프로젝트 요약·로드맵은 [루트 README](../README.md)를 참고하세요.
