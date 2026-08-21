@@ -13,9 +13,11 @@ Python 버전은 **3.12**를 권장합니다 (`.python-version` 참고).
 
 공식 CLI 표기는 `uv run qseed`입니다 (`python -m src.qseed.cli`와 동등).
 
-## 1. 설치 확인 (네트워크 불필요)
+## 1. 설치와 설치 확인
 
-의존성·CLI·단위 테스트만 확인합니다. DuckDB 웨어하우스는 아직 필요 없습니다.
+클론·의존성 설치(`git clone`, `make setup` / `uv sync`)는 네트워크가 필요합니다.
+설치가 끝난 뒤 CLI·단위 테스트만 확인하는 단계는 외부 금융 API나 DuckDB 웨어하우스 없이
+진행할 수 있습니다.
 
 ```bash
 git clone https://github.com/DevSmapy/Q-SEED.git
@@ -31,7 +33,7 @@ cp .env.example .env
 uv run pre-commit install
 ```
 
-설치 확인:
+설치 후 확인 (시세 API·DuckDB 불필요):
 
 ```bash
 uv run qseed --help

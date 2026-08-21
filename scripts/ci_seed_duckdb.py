@@ -57,8 +57,8 @@ def seed(db_path: Path) -> None:
                 )
             )
 
-    now = datetime.now(tz=UTC).replace(tzinfo=None)
     as_of = dates[-1]
+    now = datetime(as_of.year, as_of.month, as_of.day, tzinfo=UTC).replace(tzinfo=None)
     meta_rows = [
         (
             "AAA",

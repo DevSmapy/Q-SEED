@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import subprocess
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -23,31 +24,35 @@ def collect_code_provenance(*, cwd: Path | None = None) -> dict[str, Any]:
     dirty: bool | None = None
     git_status = "ok"
     try:
-        sha_proc = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=5,
-        )
-        if sha_proc.returncode == 0:
-            git_sha = sha_proc.stdout.strip() or None
-        else:
+        git_exe = shutil.which("git")
+        if git_exe is None:
             git_status = "unavailable"
+        else:
+            sha_proc = subprocess.run(
+                [git_exe, "rev-parse", "HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            if sha_proc.returncode == 0:
+                git_sha = sha_proc.stdout.strip() or None
+            else:
+                git_status = "unavailable"
 
-        dirty_proc = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=5,
-        )
-        if dirty_proc.returncode == 0:
-            dirty = bool(dirty_proc.stdout.strip())
-        elif git_status == "ok":
-            git_status = "dirty_unknown"
+            dirty_proc = subprocess.run(
+                [git_exe, "status", "--porcelain"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            if dirty_proc.returncode == 0:
+                dirty = bool(dirty_proc.stdout.strip())
+            elif git_status == "ok":
+                git_status = "dirty_unknown"
     except (OSError, subprocess.TimeoutExpired) as exc:
         logger.debug("git provenance 수집 실패: %s", exc)
         git_status = "unavailable"

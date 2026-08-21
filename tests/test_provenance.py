@@ -21,6 +21,8 @@ from src.utils.provenance import (
 )
 
 SAMPLE_ROW_COUNT = 2
+SAMPLE_MIN_DATE = "2024-01-02 00:00:00"
+SAMPLE_MAX_DATE = "2024-01-03 00:00:00"
 
 
 def _sample_db(tmp_path: Path) -> Path:
@@ -80,8 +82,8 @@ def test_collect_data_provenance_reads_fingerprint(tmp_path: Path) -> None:
     assert data["status"] == "ok"
     assert data["row_count"] == SAMPLE_ROW_COUNT
     assert data["bytes"] is not None and data["bytes"] > 0
-    assert data["min_date"] is not None
-    assert data["max_date"] is not None
+    assert data["min_date"] == SAMPLE_MIN_DATE
+    assert data["max_date"] == SAMPLE_MAX_DATE
     assert data["db_path"] == "stocks.db"
 
 
