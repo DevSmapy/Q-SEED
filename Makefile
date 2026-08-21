@@ -41,8 +41,10 @@ dbt:
 ci-seed:
 	uv run python scripts/ci_seed_duckdb.py --db data/ci_stocks.db
 
-dbt-ci: profiles ci-seed
-	DBT_PROFILES_DIR=. QSEED_DBT_DUCKDB_PATH=data/ci_stocks.db \
+dbt-ci: ci-seed
+	@mkdir -p .dbt-ci
+	@cp profiles.yml.example .dbt-ci/profiles.yml
+	DBT_PROFILES_DIR=.dbt-ci QSEED_DBT_DUCKDB_PATH=data/ci_stocks.db \
 		uv run dbt build --select stocks market
 
 dashboard:
