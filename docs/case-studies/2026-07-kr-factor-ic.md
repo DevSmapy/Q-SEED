@@ -1,6 +1,12 @@
 # 케이스 스터디: KOSPI·KOSDAQ 팩터 IC (2026-07)
 
-실제 `stocks.db`(9,431종목, 2026-07-06 기준)에서 **KOSPI·KOSDAQ 2,778종목**을 대상으로 6개 팩터를 분석했습니다.
+> **이름에 있는 `2026-07`**: 최초 연구 실행 달입니다.
+> 아래 IC 표는 당시 요약을 유지합니다. 이 환경에는 재검증용
+> `stocks.db`와 `analysis_report.json`이 없어 **숫자를 새로 돌리지는 못했고**,
+> 경로·CLI만 현재 코드에 맞췄습니다. DB가 있으면 같은 명령으로 재실행한 뒤
+> `data/factor_analysis/{factor}/analysis_report.json`을 인용하세요.
+
+당시 기록: `stocks.db` 기준 **2026-07-06**, 전체 약 9,431종목 중 **KOSPI·KOSDAQ 2,778종목**.
 
 관련 가이드: [팩터 분석 (Phase 2)](../factor-analysis.md)
 
@@ -19,7 +25,6 @@
 6개 팩터 일괄:
 
 ```bash
-# .env의 QSEED_STOCK_BASE_DIR 또는 --data-dir 사용
 for factor in momentum_12_1 momentum_6m reversal_5d volatility_60d volume_ratio_20d log_dollar_volume; do
   uv run qseed --run-factor-analysis \
     --factor "$factor" \
@@ -37,7 +42,13 @@ uv run qseed --run-factor-analysis \
 
 ## 결과 요약
 
-산출물: `data/factor_analysis/case_study_kr/case_study_summary.json`
+**현재 코드 산출물 경로** (팩터별):
+
+`data/factor_analysis/{factor}/analysis_report.json`
+(+ `ic_summary.parquet`, `quintile_summary.parquet`)
+
+예전 문서가 가리키던 `data/factor_analysis/case_study_kr/case_study_summary.json`은
+엔진이 만들지 않습니다.
 
 | 팩터                | IC mean    | IC IR     | Hit rate | Q5−Q1 spread | 해석                                                              |
 | ------------------- | ---------- | --------- | -------- | ------------ | ----------------------------------------------------------------- |
