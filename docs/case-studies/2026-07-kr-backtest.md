@@ -18,14 +18,14 @@ Phase 2 IC 케이스 스터디와 동일한 **KOSPI·KOSDAQ** 유니버스로 �
 
 ```bash
 for factor in reversal_5d volatility_60d; do
-  uv run python -m src.qseed.cli --run-backtest \
+  uv run qseed --run-backtest \
     --factor "$factor" \
     --market KOSPI --market KOSDAQ \
     --data-dir "./data"
 done
 
 # 출력 경로 지정
-uv run python -m src.qseed.cli --run-backtest \
+uv run qseed --run-backtest \
   --factor reversal_5d \
   --market NASDAQ \
   --backtest-output-dir "./data/backtest/custom_runs"

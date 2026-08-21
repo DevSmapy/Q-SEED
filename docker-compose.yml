@@ -18,7 +18,8 @@ services:
       - DBT_PROFILES_DIR=/app
       - PYTHONPATH=/app/src
     ports:
-      - "8080:8080"
+      - "8000:8000"
+      - "8501:8501"
     stdin_open: true
     tty: true
     command: sleep infinity

@@ -11,7 +11,7 @@ Phase 3와 동일한 **KOSPI·KOSDAQ / `reversal_5d` / 롱숏 / 21일 리밸런�
 DATA_DIR="/path/to/data"   # stocks.db 위치
 OUT_DIR="./data/backtest/case_study_kr"
 for method in equal_weight min_volatility hrp; do
-  uv run python -m src.qseed.cli --run-optimize \
+  uv run qseed --run-optimize \
     --factor reversal_5d \
     --market KOSPI --market KOSDAQ \
     --weight-method "$method" \

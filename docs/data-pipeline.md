@@ -122,22 +122,22 @@ uv run qseed --run-stock-pipeline
 uv run qseed --run-stock-pipeline --download-period 10y --max-stocks 500
 
 # 증분 업데이트 (티커별 last_date 기준, 종료 후 공백 자동 복구)
-uv run python -m src.qseed.cli --update-db --data-dir ./data
+uv run qseed --update-db --data-dir ./data
 
 # 시장만 증분 (cron 세션용)
 uv run qseed --update-db --data-dir ./data --market KOSPI --market KOSDAQ --market KONEX
 
 # 공백만 탐지 (수집 없음)
-uv run python -m src.qseed.cli --check-gaps --data-dir ./data
+uv run qseed --check-gaps --data-dir ./data
 
 # 공백 티커만 재수집
-uv run python -m src.qseed.cli --repair-gaps --data-dir ./data
+uv run qseed --repair-gaps --data-dir ./data
 
 # 증분 업데이트 + 자동 복구 끄기
-uv run python -m src.qseed.cli --update-db --no-gap-repair --data-dir ./data
+uv run qseed --update-db --no-gap-repair --data-dir ./data
 
 # 데이터 저장 경로 지정
-uv run python -m src.qseed.cli --build-db --data-dir ./data
+uv run qseed --build-db --data-dir ./data
 ```
 
 **공백 감지·복구**
@@ -208,8 +208,11 @@ uv run dbt run --select market
 ### 3. 리뷰 대시보드 (Streamlit)
 
 ```bash
-PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
+make dashboard
+# 또는: PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
 ```
+
+기본 포트 **8501**.
 
 - **Stocks**: dbt `rpt_stocks_*`와 `data_log/` — Overview / Coverage / Freshness / Descriptive / Ticker
 - **Market**: `raw_market_*` (있으면 `stg_market_*`) — Market Series / Market Breadth
@@ -223,8 +226,11 @@ DuckDB가 준비된 상태에서 실행합니다. 정적 UI는 레포에 포함�
 (`research/` 로컬 디렉터리는 gitignore이며, 런타임 산출물용입니다.)
 
 ```bash
-PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db
+make web
+# 또는: PYTHONPATH=src uv run python -m qseed.web.server --db data/stocks.db
 ```
+
+기본 포트 **8000**.
 
 ---
 
