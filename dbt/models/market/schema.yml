@@ -4,14 +4,21 @@ models:
   - name: stg_market__series
     description: "Staging pass-through of raw_market_series"
     columns:
+      - name: Date
+        tests: [not_null]
       - name: series_id
         description: "Series key"
+        tests: [not_null]
       - name: value
         description: "Observed value"
+        tests: [not_null]
   - name: stg_market__breadth
     description: "Staging pass-through of raw_market_breadth"
     columns:
+      - name: Date
+        tests: [not_null]
       - name: Market
         description: "Listing universe"
+        tests: [not_null]
       - name: adr_20d
         description: "20-day ADR (%)"

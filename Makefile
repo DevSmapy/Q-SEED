@@ -1,4 +1,4 @@
-.PHONY: help setup sync profiles env pre-commit test dbt dashboard web scheduled-update docker-build docker-up docker-down docker-shell docker-logs
+.PHONY: help setup sync profiles env pre-commit test dbt dbt-ci ci-seed dashboard web scheduled-update docker-build docker-up docker-down docker-shell docker-logs
 
 help:
 	@echo "Q-SEED 개발 환경"
@@ -7,6 +7,8 @@ help:
 	@echo "  make sync         uv 의존성 설치"
 	@echo "  make test         단위 테스트 (pytest)"
 	@echo "  make dbt          stocks dbt 모델 실행"
+	@echo "  make ci-seed      CI용 합성 DuckDB 생성 (네트워크 없음)"
+	@echo "  make dbt-ci       합성 DB로 dbt build (CI와 동일)"
 	@echo "  make dashboard    Streamlit stocks 리뷰 대시보드"
 	@echo "  make web          로컬 DuckDB 조회 웹 서버"
 	@echo "  make scheduled-update SESSION=kr|us  세션별 증분 업데이트 (cron용)"
@@ -35,6 +37,13 @@ test:
 
 dbt:
 	uv run dbt run --select stocks
+
+ci-seed:
+	uv run python scripts/ci_seed_duckdb.py --db data/ci_stocks.db
+
+dbt-ci: profiles ci-seed
+	DBT_PROFILES_DIR=. QSEED_DBT_DUCKDB_PATH=data/ci_stocks.db \
+		uv run dbt build --select stocks market
 
 dashboard:
 	PYTHONPATH=src uv run streamlit run src/qseed/dashboard/app.py
