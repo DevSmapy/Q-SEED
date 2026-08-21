@@ -65,15 +65,16 @@ Future API는 clone 장벽을 낮추기 위함이며, **당분간 구현·운영
 ## 빠른 시작
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/DevSmapy/Q-SEED.git
 cd Q-SEED
 make setup
 uv run qseed --help
+make test
 ```
 
-Docker: `make docker-up` 후 `make docker-shell`.
+연구용 소형 DB(네트워크 필요)와 Docker는 [docs/getting-started.md](docs/getting-started.md)를 참고하세요.
 
-설치·설정: [docs/getting-started.md](docs/getting-started.md).
+설치만 확인한 뒤: `make docker-up` → `make docker-shell`.
 
 ## 문서
 

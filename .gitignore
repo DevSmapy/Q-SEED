@@ -38,6 +38,7 @@ build/
 *.db
 *.duckdb
 profiles.yml
+.dbt-ci/
 .user.yml
 
 # dbt

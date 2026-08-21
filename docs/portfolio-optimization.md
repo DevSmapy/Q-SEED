@@ -38,17 +38,17 @@ DuckDB (raw_stocks)  →  Factor.compute()  →  분위수 유니버스
 
 ```bash
 # 기본: min_volatility
-uv run python -m src.qseed.cli --run-optimize \
+uv run qseed --run-optimize \
   --factor reversal_5d \
   --market KOSPI --market KOSDAQ
 
 # 동일가중 / HRP 비교
-uv run python -m src.qseed.cli --run-optimize \
+uv run qseed --run-optimize \
   --factor reversal_5d \
   --market KOSPI --market KOSDAQ \
   --weight-method equal_weight
 
-uv run python -m src.qseed.cli --run-optimize \
+uv run qseed --run-optimize \
   --factor reversal_5d \
   --market KOSPI --market KOSDAQ \
   --weight-method hrp \
@@ -56,7 +56,7 @@ uv run python -m src.qseed.cli --run-optimize \
   --opt-max-assets 50
 
 # Phase 3 CLI에서도 가중치 방법 지정 가능
-uv run python -m src.qseed.cli --run-backtest \
+uv run qseed --run-backtest \
   --factor reversal_5d \
   --weight-method min_volatility
 ```

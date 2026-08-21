@@ -3,9 +3,33 @@ version: 2
 models:
   - name: stg_stocks__raw_stocks
     description: "Staging pass-through of raw_stocks (stocks domain only)"
+    columns:
+      - name: Date
+        tests: [not_null]
+      - name: Ticker
+        tests: [not_null]
+      - name: Market
+        tests: [not_null]
+      - name: Close
+        tests: [not_null]
 
   - name: dim_stocks__market
     description: "Market → country / currency dimension"
+    columns:
+      - name: Market
+        tests: [not_null, unique]
+      - name: country
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["KR", "US", "OTHER"]
+      - name: currency
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["KRW", "USD", "UNKNOWN"]
 
   - name: rpt_stocks__overview
     description: "Global KPI row for stocks review dashboard"
@@ -44,6 +68,19 @@ models:
 
   - name: stg_stocks__raw_security_metadata
     description: "Staging pass-through of raw_security_metadata"
+    columns:
+      - name: Ticker
+        tests: [not_null]
+      - name: Market
+        tests: [not_null]
+      - name: sector
+        tests: [not_null]
+      - name: sector_status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["mapped", "unclassified", "error"]
 
   - name: dim_stocks__security
     description: "Latest security metadata per (Ticker, Market)"
@@ -54,6 +91,12 @@ models:
         tests: [not_null]
       - name: sector
         tests: [not_null]
+      - name: sector_status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["mapped", "unclassified", "error"]
 
   - name: rpt_stocks__coverage_by_sector
     description: "Ticker counts and pct by GICS-aligned sector"

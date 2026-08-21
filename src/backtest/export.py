@@ -12,9 +12,10 @@ import pandas as pd
 
 from src.backtest.metrics import BacktestMetrics, metrics_to_dataframe
 from src.backtest.strategy import BacktestStrategy
+from src.utils.provenance import collect_provenance
 
 ExportFormat = Literal["parquet", "csv", "both"]
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 RUNS_INDEX_FILENAME = "runs_index.json"
 
 
@@ -86,6 +87,7 @@ class BacktestExportPayload:
     positions: pd.DataFrame
     metrics: BacktestMetrics
     export_format: ExportFormat = "parquet"
+    db_path: Path | str | None = None
 
 
 @dataclass(frozen=True)
@@ -98,6 +100,7 @@ class BacktestManifestContext:
     metrics: BacktestMetrics
     artifacts: dict[str, str]
     export_format: ExportFormat
+    db_path: Path | str | None = None
 
 
 def build_manifest(context: BacktestManifestContext) -> dict[str, Any]:
@@ -107,6 +110,7 @@ def build_manifest(context: BacktestManifestContext) -> dict[str, Any]:
         "run_id": context.run_id,
         "created_at": datetime.now(tz=UTC).isoformat(),
         "export_format": context.export_format,
+        "provenance": collect_provenance(context.db_path),
         "scope": {
             "markets": context.scope.markets,
             "start_date": context.scope.start_date,
@@ -170,6 +174,7 @@ def save_backtest_run(
             metrics=payload.metrics,
             artifacts=artifacts,
             export_format=payload.export_format,
+            db_path=payload.db_path,
         )
     )
     manifest_path = run_dir / "manifest.json"

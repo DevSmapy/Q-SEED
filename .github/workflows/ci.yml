@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Pytest
+        run: uv run pytest
+
+      - name: Seed synthetic DuckDB
+        run: uv run python scripts/ci_seed_duckdb.py --db data/ci_stocks.db
+
+      - name: Prepare dbt profiles
+        run: cp profiles.yml.example profiles.yml
+
+      - name: dbt build and test
+        run: uv run dbt build --select stocks market
+        env:
+          DBT_PROFILES_DIR: .
+          QSEED_DBT_DUCKDB_PATH: data/ci_stocks.db

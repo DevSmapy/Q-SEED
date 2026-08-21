@@ -124,10 +124,8 @@ dbt marts: `dim_stocks__security`, `rpt_stocks__coverage_by_sector`, `rpt_stocks
 ### `data/factor_analysis/`
 
 ```text
-data/factor_analysis/{factor}/   # Parquet, analysis_report.json
+data/factor_analysis/{factor}/   # Parquet, analysis_report.json (+ provenance)
 ```
-
-케이스 스터디 요약: `data/factor_analysis/case_study_kr/case_study_summary.json`
 
 ### `data/backtest/`
 
@@ -137,7 +135,7 @@ data/factor_analysis/{factor}/   # Parquet, analysis_report.json
 data/backtest/case_study_kr/          # 기본 출력 경로 (--backtest-output-dir로 변경 가능)
 ├── runs_index.json                   # 실행 목록 인덱스 (웹·시각화 탐색용)
 └── {run_id}/                         # 예: reversal_5d_20260707_102526
-    ├── manifest.json                 # scope(시장·기간), 전략, 지표, 파일 목록
+    ├── manifest.json                 # scope·전략·지표·artifacts (+ provenance schema 1.1)
     ├── daily_returns.parquet         # equity, drawdown, cumulative_return 포함
     ├── positions.parquet             # 리밸런싱별 보유 종목
     └── summary.parquet               # CAGR, MDD, Sharpe 등 요약

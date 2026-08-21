@@ -59,26 +59,26 @@ NASDAQ 등 미국 시장 실행 시에도 **동일한 디렉토리 구조**를 �
 
 ```bash
 # 기본 팩터(reversal_5d) 롱숏 백테스트
-uv run python -m src.qseed.cli --run-backtest
+uv run qseed --run-backtest
 
 # 특정 팩터·시장 지정
-uv run python -m src.qseed.cli --run-backtest \
+uv run qseed --run-backtest \
   --factor reversal_5d \
   --market KOSPI --market KOSDAQ
 
 # 롱온리, 리밸런싱 주기 변경
-uv run python -m src.qseed.cli --run-backtest \
+uv run qseed --run-backtest \
   --factor volatility_60d \
   --long-only \
   --rebalance-freq 42
 
 # CSV로보내기 (Plotly·Excel 연동용)
-uv run python -m src.qseed.cli --run-backtest \
+uv run qseed --run-backtest \
   --factor reversal_5d \
   --export-format csv
 
 # Parquet + CSV 동시 저장
-uv run python -m src.qseed.cli --run-backtest \
+uv run qseed --run-backtest \
   --factor reversal_5d \
   --export-format both
 ```
