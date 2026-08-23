@@ -1,4 +1,0 @@
-{
-  "name": "Q-SEED development",
-  "install": "curl -LsSf https://astral.sh/uv/install.sh | sudo env UV_INSTALL_DIR=/usr/local/bin sh\nuv sync --frozen\ntest -f profiles.yml || cp profiles.yml.example profiles.yml\ntest -f .env || cp .env.example .env"
-}
