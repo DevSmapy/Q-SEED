@@ -42,5 +42,6 @@ Quant Strategy Evaluation & Engine Development — 연구용 백엔드 엔진 �
 | 문서                                           | 설명                                      |
 | ---------------------------------------------- | ----------------------------------------- |
 | [1단계 · 신뢰](plans/2026-08-trust-phase.html) | CI, 재현성, 케이스 스터디 수치, dbt, 설치 |
+| [2단계 · 깊이](plans/2026-08-depth-phase.html) | 증분 적재, gap, dbt 계보, Docker, 백테스트 계약, ADR |
 
 프로젝트 요약·로드맵은 [루트 README](../README.md)를 참고하세요.
