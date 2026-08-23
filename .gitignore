@@ -7,7 +7,8 @@
 /.idea/
 /.junie/
 /.vscode/
-.cursor/
+.cursor/*
+!.cursor/environment.json
 *.swp
 *.swo
 
