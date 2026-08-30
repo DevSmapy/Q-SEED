@@ -16,6 +16,7 @@ from src.qseed.cli.commands import (
     run_stock_main_cli,
 )
 from src.qseed.cli.parser import build_parser
+from src.qseed.config import AppConfig, get_config
 from src.qseed.sample_data import write_sample_warehouse
 
 REQUIRED_PYTHON = (3, 11)
@@ -32,9 +33,7 @@ class DoctorCheck:
     hint: str | None = None
 
 
-def _config(data_dir: str | None):
-    from src.qseed.config import get_config
-
+def _config(data_dir: str | None) -> AppConfig:
     config = get_config()
     if data_dir is not None:
         config.stock.base_dir = Path(data_dir)
