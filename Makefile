@@ -1,4 +1,4 @@
-.PHONY: help setup sync profiles env pre-commit test dbt dbt-ci ci-seed dashboard web scheduled-update docker-build docker-up docker-down docker-shell docker-logs
+.PHONY: help setup sync profiles env pre-commit test doctor demo quickstart collect dbt dbt-ci ci-seed dashboard web scheduled-update docker-build docker-up docker-down docker-shell docker-logs
 
 help:
 	@echo "Q-SEED 개발 환경"
@@ -6,6 +6,10 @@ help:
 	@echo "  make setup        로컬 환경 초기화 (uv sync + 설정 파일 + pre-commit)"
 	@echo "  make sync         uv 의존성 설치"
 	@echo "  make test         단위 테스트 (pytest)"
+	@echo "  make doctor       qseed doctor (환경 점검)"
+	@echo "  make demo         qseed demo (샘플 데이터로 IC·백테스트)"
+	@echo "  make quickstart   qseed quickstart"
+	@echo "  make collect      qseed collect (실제 시세, 네트워크 필요)"
 	@echo "  make dbt          stocks dbt 모델 실행"
 	@echo "  make ci-seed      CI용 합성 DuckDB 생성 (네트워크 없음)"
 	@echo "  make dbt-ci       합성 DB로 dbt build (CI와 동일)"
@@ -34,6 +38,18 @@ pre-commit:
 
 test:
 	uv run pytest
+
+doctor:
+	uv run qseed doctor
+
+demo:
+	uv run qseed demo
+
+quickstart:
+	uv run qseed quickstart
+
+collect:
+	uv run qseed collect
 
 dbt:
 	uv run dbt run --select stocks

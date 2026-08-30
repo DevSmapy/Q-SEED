@@ -11,11 +11,22 @@ import pandas as pd
 
 from src.analysis.ic import ICResult, compute_forward_returns, compute_ic
 from src.analysis.quintile import QuintileAnalysisConfig, QuintileResult, compute_quintile_returns
+from src.factors.base import FactorSpec
 from src.factors.registry import get_factor
+from src.qseed import hints
 from src.repositories.factor_repository import FactorAnalysisTables, FactorRepository
 from src.utils.provenance import collect_provenance
 
 logger = logging.getLogger("qseed")
+
+
+def _ensure_enough_price_history(prices: pd.DataFrame, spec: FactorSpec) -> None:
+    """팩터 lookback보다 히스토리가 짧으면 원인과 대안을 알려 실패한다."""
+    history_days = prices.groupby("Ticker", sort=False)["Date"].nunique()
+    longest = int(history_days.max()) if not history_days.empty else 0
+    usable = int((history_days >= spec.min_history_days).sum())
+    if usable == 0:
+        raise ValueError(hints.short_history(spec.name, spec.min_history_days, longest))
 
 
 @dataclass(frozen=True)
@@ -71,12 +82,19 @@ class FactorAnalysisRunner:
             end_date=run_config.end_date,
         )
         if prices.empty:
-            msg = "분석할 주가 데이터가 없습니다. stocks.db를 먼저 구축하세요."
-            raise ValueError(msg)
+            raise ValueError(hints.empty_prices())
 
-        logger.info("로드된 행 수: %s, 티커 수: %s", len(prices), prices["Ticker"].nunique())
+        n_tickers = int(prices["Ticker"].nunique())
+        logger.info("로드된 행 수: %s, 티커 수: %s", len(prices), n_tickers)
+        _ensure_enough_price_history(prices, spec)
+        if n_tickers < run_config.min_observations:
+            logger.warning("%s", hints.too_few_names(n_tickers, run_config.min_observations))
 
         factor_values = spec.compute(prices)
+        if factor_values.empty:
+            raise ValueError(
+                hints.short_history(spec.name, spec.min_history_days, spec.min_history_days)
+            )
         forward_returns = compute_forward_returns(prices, horizon=run_config.forward_horizon)
 
         ic_result = compute_ic(
@@ -118,6 +136,13 @@ class FactorAnalysisRunner:
                 quintile_result,
             )
             logger.info("파일 출력 완료: %s", self.output_dir)
+
+        if ic_result.daily_ic.empty:
+            logger.warning(
+                "유효한 일자별 IC가 없습니다. 날짜별 종목 수가 min_observations(%s) "
+                "미만이거나 팩터 값이 부족한 경우가 많습니다.",
+                run_config.min_observations,
+            )
 
         self._log_summary(ic_result, quintile_result)
         return FactorAnalysisResult(

@@ -103,7 +103,8 @@ raw_market_breadth (Date, Market, advances, declines, unchanged,
 - **pre-commit** 훅 및 GitHub Actions CI (`main` 브랜치 push/PR 시 실행)
 - **Docker Compose**로 컨테이너 개발 환경 제공
 
-초기 환경 구성은 [getting-started.md](getting-started.md)를 참고하세요.
+초기 환경은 `qseed doctor` / `qseed demo`입니다. 안내: [getting-started.md](getting-started.md).
+여기의 `--build-db`와 `qseed collect --full`은 플래그 없이 실행하면 **모든 시장 · 기간 max**입니다.
 
 ---
 
@@ -112,8 +113,12 @@ raw_market_breadth (Date, Market, advances, declines, unchanged,
 ### 1. 데이터 수집
 
 ```bash
+# 실제 시세 (기본: KOSPI 80종목 1y)
+uv run qseed collect
+
 # 전체 DB 구축 (모든 시장, max 기간)
-uv run qseed --build-db
+uv run qseed collect --full
+# 또는 레거시 플래그: uv run qseed --build-db
 
 # 설정값을 조정해 실행 (시장당 기본 1,000종목, max 기간)
 uv run qseed --run-stock-pipeline

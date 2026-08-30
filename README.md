@@ -29,7 +29,7 @@
 ## 데이터 원칙
 
 - **Source of truth**: DuckDB `raw_stocks` (+ Parquet 백업)
-- **yfinance / FinanceDataReader**: 배치 수집(`--build-db` / `--update-db`)에만 사용
+- **yfinance / FinanceDataReader**: 배치 수집(`qseed collect` / `--build-db` / `--update-db`)에만 사용
 - **분석·대시보드·로컬 API**: 요청마다 외부 시세를 치지 않고 **warehouse를 읽음**
 
 교차종목 팩터·백테스트는 온디맨드 API보다 물리 적재가 재현성·지연·레이트 리밋 면에서 맞습니다.
@@ -68,27 +68,28 @@ Future API는 clone 장벽을 낮추기 위함이며, **당분간 구현·운영
 git clone https://github.com/DevSmapy/Q-SEED.git
 cd Q-SEED
 make setup
-uv run qseed --help
-make test
+uv run qseed doctor
+uv run qseed demo
 ```
 
-연구용 소형 DB(네트워크 필요)와 Docker는 [docs/getting-started.md](docs/getting-started.md)를 참고하세요.
+`demo`는 합성 샘플 warehouse로 팩터 IC·백테스트까지 돕니다 (시세 API 없음).
+실제 시세는 `uv run qseed collect`입니다.
 
-설치만 확인한 뒤: `make docker-up` → `make docker-shell`.
+설치만 확인하려면 `make test`. Docker는 [docs/getting-started.md](docs/getting-started.md).
 
 ## 문서
 
-| 문서                                                | 설명                               |
-| --------------------------------------------------- | ---------------------------------- |
-| [docs/README.md](docs/README.md)                    | 문서 허브                          |
-| [시작하기](docs/getting-started.md)                 | uv / Docker, `profiles.yml`·`.env` |
-| [아키텍처](docs/architecture.md)                    | 디렉토리·DuckDB·산출물             |
-| [데이터 파이프라인](docs/data-pipeline.md)          | Phase 1 수집·dbt·대시보드          |
-| [팩터 분석](docs/factor-analysis.md)                | Phase 2                            |
-| [백테스팅](docs/backtesting.md)                     | Phase 3                            |
-| [포트폴리오 최적화](docs/portfolio-optimization.md) | Phase 4                            |
-| [CLI 레퍼런스](docs/cli-reference.md)               | CLI·환경 변수                      |
-| [케이스 스터디](docs/case-studies/)                 | KR IC / 백테스트 / 최적화          |
+| 문서                                                | 설명                                   |
+| --------------------------------------------------- | -------------------------------------- |
+| [docs/README.md](docs/README.md)                    | 문서 허브                              |
+| [시작하기](docs/getting-started.md)                 | `qseed doctor` / `demo` / `quickstart` |
+| [아키텍처](docs/architecture.md)                    | 디렉토리·DuckDB·산출물                 |
+| [데이터 파이프라인](docs/data-pipeline.md)          | Phase 1 수집·dbt·대시보드              |
+| [팩터 분석](docs/factor-analysis.md)                | Phase 2                                |
+| [백테스팅](docs/backtesting.md)                     | Phase 3                                |
+| [포트폴리오 최적화](docs/portfolio-optimization.md) | Phase 4                                |
+| [CLI 레퍼런스](docs/cli-reference.md)               | CLI·환경 변수                          |
+| [케이스 스터디](docs/case-studies/)                 | KR IC / 백테스트 / 최적화              |
 
 ## 기술 스택
 

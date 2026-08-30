@@ -5,13 +5,105 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.pipelines.stock_types import PipelineMode, PipelineRunOptions
+from src.qseed import hints
 
 if TYPE_CHECKING:
     from src.pipelines.stock_pipeline import StockDataPipeline
+
+
+@dataclass(frozen=True)
+class ResolvedStockPipelineCli:
+    """CLI 플래그를 적용한 뒤의 수집 설정."""
+
+    mode: PipelineMode
+    max_stocks: int
+    period: str
+    chunk_size: int
+    sleep_interval: float
+    yfinance_threads: bool
+    skip_auto_repair: bool
+    markets: list[str] | None
+
+
+@dataclass(frozen=True)
+class StockPipelineCliDefaults:
+    """파이프라인 객체에서 읽은 CLI 기본값."""
+
+    max_stocks: int
+    period: str
+    chunk_size: int
+    sleep_interval: float
+    yfinance_threads: bool
+
+
+def resolve_stock_pipeline_cli(
+    args: argparse.Namespace,
+    defaults: StockPipelineCliDefaults,
+) -> ResolvedStockPipelineCli:
+    """`--build-db` 프리셋 뒤에 `--max-stocks` 등 범위 플래그를 적용한다."""
+    mode: PipelineMode = args.mode
+    max_stocks = defaults.max_stocks
+    period = defaults.period
+    if args.build_db:
+        max_stocks = 1_000_000
+        period = "max"
+        mode = "full"
+    elif args.update_db:
+        max_stocks = 1_000_000
+        mode = "incremental"
+
+    if args.max_stocks is not None:
+        max_stocks = args.max_stocks
+    chunk_size = args.chunk_size if args.chunk_size is not None else defaults.chunk_size
+    if args.download_period is not None:
+        period = args.download_period
+    sleep_interval = (
+        args.sleep_interval if args.sleep_interval is not None else defaults.sleep_interval
+    )
+    yfinance_threads = bool(defaults.yfinance_threads or args.yfinance_threads)
+    return ResolvedStockPipelineCli(
+        mode=mode,
+        max_stocks=max_stocks,
+        period=period,
+        chunk_size=chunk_size,
+        sleep_interval=sleep_interval,
+        yfinance_threads=yfinance_threads,
+        skip_auto_repair=bool(args.no_gap_repair),
+        markets=args.market,
+    )
+
+
+def _log_stock_pipeline_plan(
+    args: argparse.Namespace,
+    resolved: ResolvedStockPipelineCli,
+    logger: logging.Logger,
+    *,
+    auto_repair_gaps: bool,
+) -> None:
+    if args.build_db:
+        logger.info("모드: 전체 데이터베이스 구축 (--build-db)")
+    elif args.update_db:
+        logger.info("모드: 데이터베이스 증분 업데이트 (--update-db)")
+        logger.info("- 청크별 티커 last_date 기준 수집 (전역 MAX Date 미사용)")
+    else:
+        logger.info("모드: 주식 파이프라인 (--run-stock-pipeline, mode=%s)", resolved.mode)
+
+    if resolved.markets:
+        logger.info("- 대상 시장: %s", ", ".join(resolved.markets))
+    else:
+        logger.info("- 대상 시장: 전체")
+    logger.info("- 시장별 최대 종목 수: %s", resolved.max_stocks)
+    logger.info("- 데이터 수집 기간: %s", resolved.period)
+    if args.update_db:
+        if auto_repair_gaps and not resolved.skip_auto_repair:
+            logger.info("- 완료 후 시장별 공백 티커 자동 복구")
+        elif resolved.skip_auto_repair:
+            logger.info("- 자동 공백 복구 비활성화 (--no-gap-repair)")
 
 
 def setup_logging(log_file: Path) -> logging.Logger:
@@ -101,7 +193,7 @@ def run_optimize_cli(args: argparse.Namespace) -> int:
     )
 
     if not config.stock.db_path.exists():
-        logger.error("DuckDB 파일이 없습니다: %s", config.stock.db_path)
+        logger.error("%s", hints.missing_db(config.stock.db_path))
         return 1
 
     with BacktestRepository(config.stock.db_path) as repository:
@@ -160,7 +252,7 @@ def run_backtest_cli(args: argparse.Namespace) -> int:
     logger.info("백테스트 CLI 실행 시작 (출력: %s)", output_dir)
 
     if not config.stock.db_path.exists():
-        logger.error("DuckDB 파일이 없습니다: %s", config.stock.db_path)
+        logger.error("%s", hints.missing_db(config.stock.db_path))
         return 1
 
     with BacktestRepository(config.stock.db_path) as repository:
@@ -214,19 +306,23 @@ def run_factor_analysis(args: argparse.Namespace) -> int:
     logger.info("팩터 분석 CLI 실행 시작")
 
     if not config.stock.db_path.exists():
-        logger.error("DuckDB 파일이 없습니다: %s", config.stock.db_path)
+        logger.error("%s", hints.missing_db(config.stock.db_path))
         return 1
 
     with FactorRepository(config.stock.db_path) as repository:
         runner = FactorAnalysisRunner(repository, output_dir=output_dir)
-        runner.run(
-            factor_name,
-            config=FactorRunConfig(
-                markets=args.market,
-                forward_horizon=forward_horizon,
-                min_observations=config.factor.min_observations,
-            ),
-        )
+        try:
+            runner.run(
+                factor_name,
+                config=FactorRunConfig(
+                    markets=args.market,
+                    forward_horizon=forward_horizon,
+                    min_observations=config.factor.min_observations,
+                ),
+            )
+        except ValueError as exc:
+            logger.error("%s", exc)
+            return 1
     logger.info("팩터 분석 CLI 실행 완료")
     return 0
 
@@ -259,47 +355,38 @@ def run_stock_pipeline_cli(
     logger: logging.Logger,
 ) -> int:
     """주식 파이프라인 CLI 실행."""
-    mode: PipelineMode = args.mode
-    if args.build_db:
-        pipeline.config.stock.max_stocks = 1000000
-        pipeline.fetcher.period = "max"
-        mode = "full"
-        logger.info("모드: 전체 데이터베이스 구축 (--build-db)")
-        logger.info("- 모든 지원 시장의 모든 티커 수집 시도")
-        logger.info("- 데이터 수집 기간: max")
-    elif args.update_db:
-        pipeline.config.stock.max_stocks = 1000000
-        mode = "incremental"
-        logger.info("모드: 데이터베이스 증분 업데이트 (--update-db)")
-        if args.market:
-            logger.info("- 대상 시장: %s", ", ".join(args.market))
-        else:
-            logger.info("- 모든 지원 시장의 모든 티커 수집 시도")
-        logger.info("- 청크별 티커 last_date 기준 수집 (전역 MAX Date 미사용)")
-        if pipeline.config.stock.auto_repair_gaps and not args.no_gap_repair:
-            logger.info("- 완료 후 시장별 공백 티커 자동 복구")
-        elif args.no_gap_repair:
-            logger.info("- 자동 공백 복구 비활성화 (--no-gap-repair)")
-
-    if args.max_stocks is not None:
-        pipeline.config.stock.max_stocks = args.max_stocks
-    if args.chunk_size is not None:
-        pipeline.config.stock.chunk_size = args.chunk_size
-    if args.download_period is not None:
-        pipeline.fetcher.period = args.download_period
-    if args.sleep_interval is not None:
-        pipeline.config.stock.sleep_interval = args.sleep_interval
-    if args.yfinance_threads:
+    resolved = resolve_stock_pipeline_cli(
+        args,
+        StockPipelineCliDefaults(
+            max_stocks=pipeline.config.stock.max_stocks,
+            period=pipeline.fetcher.period,
+            chunk_size=pipeline.config.stock.chunk_size,
+            sleep_interval=pipeline.config.stock.sleep_interval,
+            yfinance_threads=pipeline.config.stock.yfinance_threads,
+        ),
+    )
+    pipeline.config.stock.max_stocks = resolved.max_stocks
+    pipeline.config.stock.chunk_size = resolved.chunk_size
+    pipeline.config.stock.sleep_interval = resolved.sleep_interval
+    pipeline.fetcher.period = resolved.period
+    if resolved.yfinance_threads:
         pipeline.config.stock.yfinance_threads = True
         pipeline.fetcher.threads = True
 
+    _log_stock_pipeline_plan(
+        args,
+        resolved,
+        logger,
+        auto_repair_gaps=pipeline.config.stock.auto_repair_gaps,
+    )
+
     pipeline.run(
         PipelineRunOptions(
-            mode=mode,
+            mode=resolved.mode,
             start_date=args.start_date,
             end_date=args.end_date,
-            skip_auto_repair=args.no_gap_repair,
-            markets=args.market,
+            skip_auto_repair=resolved.skip_auto_repair,
+            markets=resolved.markets,
         )
     )
     return 0
