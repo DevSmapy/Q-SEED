@@ -37,16 +37,13 @@ DuckDB (raw_stocks)  →  Factor.compute()  →  IC / Quintile 분석
 ## 사용법
 
 DuckDB에 주가 데이터가 적재된 뒤 실행합니다.
+첫 실행은 `qseed demo` 또는 `qseed analyze` (기본 `reversal_5d`)입니다.
+`--run-factor-analysis`의 기본 팩터 `momentum_12_1`은 종목당 약 252거래일이 필요하고, 단면 IC는 날짜별 종목 수 ≥ 30이 필요합니다.
 
 ```bash
-# 등록된 팩터 목록
-uv run qseed --list-factors
-
-# 기본 팩터(momentum_12_1) IC·분위수 분석
-uv run qseed --run-factor-analysis
-
-# 특정 팩터·시장 지정
-uv run qseed --run-factor-analysis --factor reversal_5d --market KOSPI --market KOSDAQ
+uv run qseed factors
+uv run qseed analyze
+uv run qseed analyze --factor reversal_5d --market KOSPI
 
 # 선행 수익률 기간(거래일) 변경
 uv run qseed --run-factor-analysis --factor momentum_6m --forward-horizon 63

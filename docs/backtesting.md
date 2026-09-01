@@ -56,6 +56,8 @@ NASDAQ 등 미국 시장 실행 시에도 **동일한 디렉토리 구조**를 �
 ## 사용법
 
 팩터 IC 분석 이후, 동일한 DuckDB 데이터로 롱숏/롱온리 전략 백테스트를 실행합니다.
+`qseed backtest`는 기존 warehouse가 필요합니다. 처음이면 먼저 `qseed demo` 또는
+`qseed collect`를 실행하세요.
 
 ```bash
 # 기본 팩터(reversal_5d) 롱숏 백테스트

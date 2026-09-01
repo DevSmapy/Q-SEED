@@ -1,7 +1,8 @@
 # CLI 레퍼런스
 
 `qseed` CLI의 전체 옵션과 환경 변수를 모은 단일 진실 공급원(Single Source of Truth)입니다.
-사용 예시는 각 Phase 가이드를 참고하세요.
+초보자는 작업 명령을 쓰세요: `qseed doctor`, `qseed demo`, `qseed quickstart`, `qseed collect`.
+이 문서는 기존 `--플래그`입니다 (`qseed --help-flags`). 첫 실행은 [getting-started.md](getting-started.md).
 
 ---
 
@@ -32,25 +33,25 @@ QSEED_GCS_BUCKET_NAME=my-bucket   # 설정 시 Parquet GCS 업로드 활성화
 
 ## 1. 데이터 수집
 
-| 옵션                    | 설명                                             | 기본값   |
-| ----------------------- | ------------------------------------------------ | -------- |
-| `--build-db`            | 전 종목·max 기간 전체 적재                       | —        |
-| `--update-db`           | 증분 업데이트 (티커별 last_date, 공백 자동 복구) | —        |
-| `--market` (수집)       | 증분/공백 대상 시장 (반복 지정, 미지정 시 전체)  | 전체     |
-| `--check-gaps`          | 시장별 공백 티커 탐지 (수집 없음)                | —        |
-| `--repair-gaps`         | 공백 티커만 재수집                               | —        |
-| `--no-gap-repair`       | `--update-db` 후 자동 공백 복구 비활성화         | —        |
-| `--run-stock-pipeline`  | 파이프라인 실행                                  | —        |
-| `--run-market-pipeline` | 시장 지표 시계열 수집 + breadth 파생             | —        |
-| `--breadth-only`        | market 파이프라인에서 breadth만 재계산           | —        |
-| `--mode`                | `full` / `incremental`                           | `full`   |
-| `--data-dir`            | 데이터 저장 디렉토리                             | `./data` |
-| `--max-stocks`          | 시장별 최대 종목 수                              | `1000`   |
-| `--download-period`     | yfinance 기간 (`1y`, `5y`, `max` 등)             | `max`    |
-| `--chunk-size`          | 청크당 종목 수                                   | `100`    |
-| `--sleep-interval`      | 청크 간 대기(초)                                 | `5.0`    |
-| `--start-date`          | 수집 시작일 (`YYYY-MM-DD`, incremental)          | —        |
-| `--end-date`            | 수집 종료일 (`YYYY-MM-DD`, incremental)          | —        |
+| 옵션                    | 설명                                                                                   | 기본값   |
+| ----------------------- | -------------------------------------------------------------------------------------- | -------- |
+| `--build-db`            | 전 종목·max 기간 전체 적재 (`--market`/`--max-stocks`/`--download-period`로 축소 가능) | —        |
+| `--update-db`           | 증분 업데이트 (티커별 last_date, 공백 자동 복구)                                       | —        |
+| `--market` (수집)       | 증분/공백 대상 시장 (반복 지정, 미지정 시 전체)                                        | 전체     |
+| `--check-gaps`          | 시장별 공백 티커 탐지 (수집 없음)                                                      | —        |
+| `--repair-gaps`         | 공백 티커만 재수집                                                                     | —        |
+| `--no-gap-repair`       | `--update-db` 후 자동 공백 복구 비활성화                                               | —        |
+| `--run-stock-pipeline`  | 파이프라인 실행                                                                        | —        |
+| `--run-market-pipeline` | 시장 지표 시계열 수집 + breadth 파생                                                   | —        |
+| `--breadth-only`        | market 파이프라인에서 breadth만 재계산                                                 | —        |
+| `--mode`                | `full` / `incremental`                                                                 | `full`   |
+| `--data-dir`            | 데이터 저장 디렉토리                                                                   | `./data` |
+| `--max-stocks`          | 시장별 최대 종목 수                                                                    | `1000`   |
+| `--download-period`     | yfinance 기간 (`1y`, `5y`, `max` 등)                                                   | `max`    |
+| `--chunk-size`          | 청크당 종목 수                                                                         | `100`    |
+| `--sleep-interval`      | 청크 간 대기(초)                                                                       | `5.0`    |
+| `--start-date`          | 수집 시작일 (`YYYY-MM-DD`, incremental)                                                | —        |
+| `--end-date`            | 수집 종료일 (`YYYY-MM-DD`, incremental)                                                | —        |
 
 **환경 변수 (수집·공백)**
 

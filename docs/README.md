@@ -6,11 +6,11 @@ Quant Strategy Evaluation & Engine Development — 연구용 백엔드 엔진 �
 
 ## 시작
 
-| 문서                                                    | 설명                                            |
-| ------------------------------------------------------- | ----------------------------------------------- |
-| [시작하기](getting-started.md)                          | 사전 요구사항, uv/Docker, `profiles.yml`·`.env` |
-| [아키텍처](architecture.md)                             | 디렉토리 구조, DuckDB 스키마, 산출물 경로       |
-| [Security metadata 계약](security-metadata-contract.md) | 종목 섹터·업종 스키마·enum·GICS 정규화          |
+| 문서                                                    | 설명                                             |
+| ------------------------------------------------------- | ------------------------------------------------ |
+| [시작하기](getting-started.md)                          | `qseed doctor` · `demo` · `quickstart` · collect |
+| [아키텍처](architecture.md)                             | 디렉토리 구조, DuckDB 스키마, 산출물 경로        |
+| [Security metadata 계약](security-metadata-contract.md) | 종목 섹터·업종 스키마·enum·GICS 정규화           |
 
 ## Phase 가이드
 

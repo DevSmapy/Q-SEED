@@ -70,8 +70,20 @@ def test_cli_module_help_smoke() -> None:
         cwd=Path(__file__).resolve().parents[1],
     )
     assert result.returncode == 0
-    assert "--build-db" in result.stdout
-    assert "--run-backtest" in result.stdout
+    assert "qseed doctor" in result.stdout
+    assert "qseed demo" in result.stdout
+    assert "qseed quickstart" in result.stdout
+
+    flags = subprocess.run(
+        [sys.executable, "-m", "src.qseed.cli", "--help-flags"],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert flags.returncode == 0
+    assert "--build-db" in flags.stdout
+    assert "--run-backtest" in flags.stdout
 
 
 def _seed_gap_db(db_path: Path) -> None:

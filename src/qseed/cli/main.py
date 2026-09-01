@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
+from src.qseed import hints
 from src.qseed.cli.commands import (
     run_backtest_cli,
     run_factor_analysis,
@@ -14,15 +16,21 @@ from src.qseed.cli.commands import (
     run_stock_main_cli,
     setup_logging,
 )
-from src.qseed.cli.parser import build_parser
+from src.qseed.cli.parser import (
+    TASK_COMMANDS,
+    build_parser,
+    build_task_parser,
+    print_root_help,
+)
+from src.qseed.cli.tasks import dispatch_task
 from src.utils.helpers import raise_open_file_limit
 
 
-def main() -> int:
-    """CLI 메인 함수."""
+def _run_legacy(argv: list[str]) -> int:
+    """기존 --플래그 CLI."""
     raise_open_file_limit()
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     analysis_or_backtest = (
         args.list_factors or args.run_factor_analysis or args.run_optimize or args.run_backtest
@@ -61,5 +69,29 @@ def main() -> int:
     if stock_exit >= 0:
         return stock_exit
 
-    parser.print_help()
+    print_root_help()
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
+    """CLI 메인 함수."""
+    tokens = list(sys.argv[1:] if argv is None else argv)
+    if not tokens or tokens[0] in ("-h", "--help"):
+        print_root_help()
+        return 0
+    if tokens[0] == "--help-flags":
+        build_parser().print_help()
+        return 0
+    if tokens[0] == "help":
+        if len(tokens) == 1:
+            print_root_help()
+            return 0
+        return main([tokens[1], "-h"])
+    if tokens[0] in TASK_COMMANDS:
+        raise_open_file_limit()
+        args = build_task_parser().parse_args(tokens)
+        return dispatch_task(args)
+    if tokens[0].startswith("-"):
+        return _run_legacy(tokens)
+    print(hints.unknown_command(tokens[0]), file=sys.stderr)
+    return 2
