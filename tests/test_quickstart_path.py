@@ -137,6 +137,23 @@ def test_root_help_lists_task_commands(capsys: pytest.CaptureFixture[str]) -> No
     assert "qseed collect" in out
 
 
+def test_empty_prices_hint_names_next_commands() -> None:
+    from src.qseed import hints
+
+    text = hints.empty_prices()
+    assert "qseed demo" in text
+    assert "qseed collect" in text
+    assert "qseed doctor" in text
+
+
+def test_unusable_warehouse_hint_names_force_reseed() -> None:
+    from src.qseed import hints
+
+    text = hints.unusable_warehouse(Path("data/stocks.db"), "raw_stocks 비어 있음")
+    assert "qseed demo --force" in text
+    assert "raw_stocks 비어 있음" in text
+
+
 def test_unknown_command_suggests_demo(capsys: pytest.CaptureFixture[str]) -> None:
     from src.qseed.cli.main import main
 
