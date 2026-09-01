@@ -33,6 +33,38 @@ class DoctorCheck:
     hint: str | None = None
 
 
+@dataclass(frozen=True)
+class WarehouseInspection:
+    """stocks.db가 분석에 쓸 수 있는지."""
+
+    usable: bool
+    n_rows: int
+    reason: str
+
+
+def inspect_warehouse(db_path: Path) -> WarehouseInspection:
+    """raw_stocks가 있고 1행 이상이면 usable."""
+    if not db_path.is_file():
+        return WarehouseInspection(usable=False, n_rows=0, reason="없음")
+    try:
+        import duckdb
+
+        conn = duckdb.connect(str(db_path), read_only=True)
+        try:
+            tables = {row[0] for row in conn.execute("SHOW TABLES").fetchall()}
+            if "raw_stocks" not in tables:
+                return WarehouseInspection(usable=False, n_rows=0, reason="raw_stocks 없음")
+            count_row = conn.execute("SELECT COUNT(*) FROM raw_stocks").fetchone()
+            n_rows = int(count_row[0]) if count_row else 0
+            if n_rows == 0:
+                return WarehouseInspection(usable=False, n_rows=0, reason="raw_stocks 비어 있음")
+            return WarehouseInspection(usable=True, n_rows=n_rows, reason="ok")
+        finally:
+            conn.close()
+    except Exception as exc:  # noqa: BLE001 — doctor는 원인만 보여 주면 됨
+        return WarehouseInspection(usable=False, n_rows=0, reason=f"열 수 없음: {exc}")
+
+
 def _config(data_dir: str | None) -> AppConfig:
     config = get_config()
     if data_dir is not None:
@@ -107,42 +139,31 @@ def collect_doctor_checks(*, data_dir: str | None, cwd: Path | None = None) -> l
 
     config = _config(data_dir)
     db_path = config.stock.db_path
-    if db_path.is_file():
-        try:
-            import duckdb
-
-            conn = duckdb.connect(str(db_path), read_only=True)
-            try:
-                tables = {row[0] for row in conn.execute("SHOW TABLES").fetchall()}
-                n_rows = 0
-                if "raw_stocks" in tables:
-                    count_row = conn.execute("SELECT COUNT(*) FROM raw_stocks").fetchone()
-                    n_rows = int(count_row[0]) if count_row else 0
-            finally:
-                conn.close()
-            checks.append(
-                DoctorCheck(
-                    name="stocks.db",
-                    status="ok",
-                    detail=f"{db_path} (raw_stocks {n_rows}행)",
-                )
-            )
-        except Exception as exc:  # noqa: BLE001 — doctor는 원인만 보여 주면 됨
-            checks.append(
-                DoctorCheck(
-                    name="stocks.db",
-                    status="fail",
-                    detail=f"열 수 없음: {exc}",
-                    hint="다음: qseed demo --force",
-                )
-            )
-    else:
+    inspection = inspect_warehouse(db_path)
+    if not db_path.is_file():
         checks.append(
             DoctorCheck(
                 name="stocks.db",
                 status="warn",
                 detail=f"없음 ({db_path})",
                 hint="다음: qseed demo",
+            )
+        )
+    elif inspection.usable:
+        checks.append(
+            DoctorCheck(
+                name="stocks.db",
+                status="ok",
+                detail=f"{db_path} (raw_stocks {inspection.n_rows}행)",
+            )
+        )
+    else:
+        checks.append(
+            DoctorCheck(
+                name="stocks.db",
+                status="fail",
+                detail=f"{db_path} ({inspection.reason})",
+                hint="다음: qseed demo --force",
             )
         )
     return checks
@@ -182,6 +203,10 @@ def run_demo(args: argparse.Namespace) -> int:
     db_path = config.stock.db_path
     market: str | None = None
     if db_path.exists() and not args.force:
+        inspection = inspect_warehouse(db_path)
+        if not inspection.usable:
+            print(hints.unusable_warehouse(db_path, inspection.reason), file=sys.stderr)
+            return 1
         print(f"기존 warehouse 사용: {db_path}")
         print("덮어쓰려면: qseed demo --force")
     else:
@@ -224,12 +249,19 @@ def run_demo(args: argparse.Namespace) -> int:
 
 def run_quickstart(args: argparse.Namespace) -> int:
     """doctor 후 demo."""
-    doctor_code = run_doctor(args)
-    if doctor_code != 0:
-        return doctor_code
+    checks = collect_doctor_checks(data_dir=args.data_dir)
+    print(format_doctor_report(checks))
+    force = bool(getattr(args, "force", False))
+    blocking = [
+        item
+        for item in checks
+        if item.status == "fail" and not (force and item.name == "stocks.db")
+    ]
+    if blocking:
+        return 1
     demo_args = argparse.Namespace(
         data_dir=args.data_dir,
-        force=bool(getattr(args, "force", False)),
+        force=force,
         seed_only=False,
     )
     demo_code = run_demo(demo_args)

@@ -15,7 +15,8 @@ def missing_db(path: Path) -> str:
     )
 
 
-def empty_prices() -> str:
+def unusable_warehouse(path: Path, reason: str) -> str:
+    return f"warehouse를 쓸 수 없습니다: {path} ({reason})\n" "다음:\n" "  qseed demo --force"
     return (
         "분석할 주가 데이터가 없습니다.\n"
         "다음:\n"

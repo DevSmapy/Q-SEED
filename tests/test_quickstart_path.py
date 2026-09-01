@@ -187,3 +187,66 @@ def test_demo_seed_only_and_analyze_loop(tmp_path: Path) -> None:
     report = tmp_path / "factor_analysis" / "reversal_5d" / "analysis_report.json"
     assert report.is_file()
     assert main(["analyze", "--factor", "momentum_12_1", "--data-dir", str(tmp_path)]) == 1
+
+
+def _empty_duckdb(path: Path, *, with_empty_raw_stocks: bool) -> None:
+    import duckdb
+
+    conn = duckdb.connect(str(path))
+    try:
+        if with_empty_raw_stocks:
+            conn.execute(
+                """
+                CREATE TABLE raw_stocks (
+                    Date TIMESTAMP, Ticker TEXT, Market TEXT,
+                    Open DOUBLE, High DOUBLE, Low DOUBLE, Close DOUBLE,
+                    Volume BIGINT, Dividends DOUBLE, Split DOUBLE
+                )
+                """
+            )
+    finally:
+        conn.close()
+
+
+def test_doctor_marks_schemaless_db_unusable(tmp_path: Path) -> None:
+    from src.qseed.cli.tasks import collect_doctor_checks
+
+    _empty_duckdb(tmp_path / "stocks.db", with_empty_raw_stocks=False)
+    checks = collect_doctor_checks(data_dir=str(tmp_path), cwd=tmp_path)
+    stock = next(item for item in checks if item.name == "stocks.db")
+    assert stock.status == "fail"
+    assert "qseed demo --force" in (stock.hint or "")
+
+
+def test_doctor_marks_empty_raw_stocks_unusable(tmp_path: Path) -> None:
+    from src.qseed.cli.tasks import collect_doctor_checks
+
+    _empty_duckdb(tmp_path / "stocks.db", with_empty_raw_stocks=True)
+    checks = collect_doctor_checks(data_dir=str(tmp_path), cwd=tmp_path)
+    stock = next(item for item in checks if item.name == "stocks.db")
+    assert stock.status == "fail"
+    assert "qseed demo --force" in (stock.hint or "")
+
+
+def test_demo_refuses_empty_warehouse_without_force(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from src.qseed.cli.main import main
+
+    _empty_duckdb(tmp_path / "stocks.db", with_empty_raw_stocks=True)
+    assert main(["demo", "--data-dir", str(tmp_path)]) == 1
+    err = capsys.readouterr().err
+    assert "qseed demo --force" in err
+    assert not (tmp_path / "factor_analysis").exists()
+
+
+def test_demo_force_reseeds_empty_warehouse(tmp_path: Path) -> None:
+    from src.qseed.cli.main import main
+
+    _empty_duckdb(tmp_path / "stocks.db", with_empty_raw_stocks=True)
+    assert main(["demo", "--force", "--seed-only", "--data-dir", str(tmp_path)]) == 0
+    from src.qseed.cli.tasks import inspect_warehouse
+
+    inspection = inspect_warehouse(tmp_path / "stocks.db")
+    assert inspection.usable
+    assert inspection.n_rows > 0
