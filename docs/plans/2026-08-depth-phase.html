@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Q-SEED 2단계 — 기존 기술의 깊이를 증명하기</title>
+    <style>
+      :root {
+        --ink: #1c1917;
+        --muted: #57534e;
+        --line: #e7e5e4;
+        --paper: #faf7f2;
+        --card: #fffdf9;
+        --accent: #0f766e;
+        --accent-soft: #ccfbf1;
+        --warn: #9a3412;
+        --warn-soft: #ffedd5;
+        --skip: #44403c;
+        --skip-soft: #f5f5f4;
+        --good: #166534;
+        --good-soft: #dcfce7;
+        --danger: #9f1239;
+        --danger-soft: #ffe4e6;
+        --info: #1e3a5f;
+        --info-soft: #e0f2fe;
+        --shadow: 0 1px 2px rgb(28 25 23 / 6%), 0 8px 24px rgb(28 25 23 / 6%);
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --sans: "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", system-ui,
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: var(--sans);
+        line-height: 1.55;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code,
+      kbd {
+        font-family: var(--mono);
+        font-size: 0.86em;
+        background: var(--skip-soft);
+        padding: 0.08em 0.35em;
+        border-radius: 4px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      nav {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        padding: 28px 18px;
+        border-right: 1px solid var(--line);
+        background: #f3efe7;
+        overflow: auto;
+      }
+
+      nav .brand {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      nav strong {
+        display: block;
+        margin-bottom: 18px;
+        font-size: 15px;
+      }
+
+      nav a {
+        display: block;
+        color: var(--ink);
+        text-decoration: none;
+        padding: 6px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+
+      nav a:hover {
+        background: rgb(15 118 110 / 10%);
+      }
+
+      nav .prev {
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      main {
+        max-width: 980px;
+        padding: 40px 48px 80px;
+      }
+
+      .kicker {
+        color: var(--accent);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        font-size: 13px;
+      }
+
+      h1 {
+        font-size: 2rem;
+        line-height: 1.25;
+        margin: 6px 0 12px;
+      }
+
+      h2 {
+        margin-top: 48px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+        font-size: 1.35rem;
+      }
+
+      h3 {
+        margin-top: 28px;
+        font-size: 1.05rem;
+      }
+
+      p.lead {
+        font-size: 1.05rem;
+        color: var(--muted);
+        max-width: 62ch;
+      }
+
+      .hero-grid,
+      .cards,
+      .stats {
+        display: grid;
+        gap: 12px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1.4fr 1fr;
+        margin: 24px 0 8px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, 1fr);
+        margin: 20px 0;
+      }
+
+      .stat {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px 18px;
+      }
+
+      .stat .n {
+        font-size: 1.7rem;
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--accent);
+      }
+
+      .stat .l {
+        margin-top: 4px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .pill {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 999px;
+      }
+
+      .pill.do {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .pill.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+
+      .pill.skip {
+        background: var(--skip-soft);
+        color: var(--skip);
+      }
+
+      .pill.good {
+        background: var(--good-soft);
+        color: var(--good);
+      }
+
+      .pill.danger {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .pill.info {
+        background: var(--info-soft);
+        color: var(--info);
+      }
+
+      ul.tight {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      ul.tight li {
+        margin: 4px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      th {
+        background: #f5f0e8;
+        font-size: 12px;
+        letter-spacing: 0.03em;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .tone-success td:first-child {
+        box-shadow: inset 3px 0 0 var(--good);
+      }
+
+      .tone-info td:first-child {
+        box-shadow: inset 3px 0 0 var(--accent);
+      }
+
+      .tone-warn td:first-child {
+        box-shadow: inset 3px 0 0 var(--warn);
+      }
+
+      .tone-danger td:first-child {
+        box-shadow: inset 3px 0 0 var(--danger);
+      }
+
+      .callout {
+        border-left: 4px solid var(--warn);
+        background: var(--warn-soft);
+        padding: 12px 14px;
+        border-radius: 0 10px 10px 0;
+        margin: 16px 0;
+      }
+
+      .callout.ok {
+        border-left-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .callout.skip {
+        border-left-color: var(--skip);
+        background: var(--skip-soft);
+      }
+
+      .work {
+        display: grid;
+        grid-template-columns: 160px minmax(0, 1fr);
+        gap: 16px;
+        padding: 18px 0;
+        border-bottom: 1px dashed var(--line);
+      }
+
+      .work:last-of-type {
+        border-bottom: 0;
+      }
+
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .todo {
+        list-style: none;
+        padding: 0;
+      }
+
+      .todo li {
+        display: grid;
+        grid-template-columns: 22px 1fr;
+        gap: 8px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .todo input {
+        margin-top: 4px;
+      }
+
+      .dag {
+        width: 100%;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        overflow-x: auto;
+      }
+
+      .dag svg {
+        display: block;
+        min-width: 720px;
+      }
+
+      .caption {
+        margin: 8px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      footer {
+        margin-top: 40px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 920px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        nav {
+          position: relative;
+          height: auto;
+        }
+
+        main {
+          padding: 24px 18px 48px;
+        }
+
+        .hero-grid,
+        .stats,
+        .pair,
+        .work {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <nav>
+        <div class="brand">Q-SEED plan</div>
+        <strong>2단계 · 깊이</strong>
+        <a href="#goal">목표</a>
+        <a href="#already">이미 있는 것</a>
+        <a href="#incremental">증분 적재</a>
+        <a href="#gaps">Gap detection</a>
+        <a href="#dbt">dbt 계보</a>
+        <a href="#docker">Docker</a>
+        <a href="#backtest">백테스트</a>
+        <a href="#adr">ADR</a>
+        <a href="#sequence">권장 순서</a>
+        <a href="#wont">하지 않을 것</a>
+        <a href="#done">완료 정의</a>
+        <div class="prev">
+          이전:
+          <a href="2026-08-trust-phase.html">1단계 · 신뢰</a>
+        </div>
+      </nav>
+      <main>
+        <p class="kicker">Working plan · 2026-08 · 초안</p>
+        <h1>기존 기술의 깊이를 증명하기</h1>
+        <p class="lead">
+          1단계는 “다시 돌려도 같은 이야기인가”였다. 2단계는 이미 돌아가는
+          설계를 <b>왜 그렇게 짰는지</b> 문서·테스트·다이어그램으로 고정하는
+          일이다. 새 팩터나 API가 아니다. Cursor 캔버스는 로컬 Desktop에서만
+          열리므로, 이 문서는 브라우저에서 연다.
+        </p>
+
+        <div class="hero-grid">
+          <div class="card">
+            <span class="pill do">이번 단계</span>
+            <ul class="tight">
+              <li>증분 적재가 전역 max가 아니라 청크 min last_date인 이유</li>
+              <li>gap이 잡는 공백과 못 잡는 공백을 표로 밝히기</li>
+              <li>dbt 계보와 “테스트가 깨지면 무슨 의미인지”</li>
+              <li>Docker 개발 셸과 재현 런을 분리해서 적기</li>
+              <li>백테스트 엔진 계약 6개를 pytest로 잠그기</li>
+              <li>버린 대안이 있는 ADR 7개</li>
+            </ul>
+          </div>
+          <div class="card">
+            <span class="pill skip">하지 않음</span>
+            <ul class="tight">
+              <li>신규 팩터 · Hosted API</li>
+              <li>거래소 공휴일 캘린더 엔진</li>
+              <li>dbt docs 사이트 호스팅</li>
+              <li>샘플 <code>stocks.db</code> git 커밋</li>
+              <li>yfinance 비트 단위 재현 약속</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="n">6</div>
+            <div class="l">작업 스트림</div>
+          </div>
+          <div class="stat">
+            <div class="n">7</div>
+            <div class="l">ADR 초안</div>
+          </div>
+          <div class="stat">
+            <div class="n">0</div>
+            <div class="l">신규 전략 · API</div>
+          </div>
+        </div>
+
+        <div class="callout ok">
+          면접·포트폴리오에서 증분 적재 / gap / dbt / Docker / 백테스트를 말할
+          때, 추상 키워드가 아니라 <b>Q-SEED 파일·테스트·명령</b>을 가리킬 수
+          있게 만든다. 기능 코드는 테스트가 실패할 때만 고친다. PR은
+          <b>문서 하나 + 테스트 하나</b>면 충분하다.
+        </div>
+
+        <h2 id="already">이미 레포에 있는 것</h2>
+        <p>
+          2단계는 처음부터 짓는 일이 아니다. 코드에 묻힌 판단을 보이게 만드는
+          일이다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>스트림</th>
+              <th>코드 진실</th>
+              <th>2단계에서 더하는 것</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>증분 적재</td>
+              <td><code>StockDataPipeline._resolve_chunk_start_date</code></td>
+              <td>설계 한 장 + 청크 min-date 테스트</td>
+            </tr>
+            <tr>
+              <td>Gap</td>
+              <td><code>detect_gaps</code></td>
+              <td>공백 5종 표 + 한계(중간 구멍)를 ADR에</td>
+            </tr>
+            <tr>
+              <td>dbt</td>
+              <td><code>dbt build --select stocks market</code></td>
+              <td>계보 DAG + 테스트가 깨질 때의 의미</td>
+            </tr>
+            <tr>
+              <td>Docker</td>
+              <td><code>docker-compose.yml</code></td>
+              <td>개발 셸 vs 재현 런을 분리해서 적기</td>
+            </tr>
+            <tr>
+              <td>백테스트</td>
+              <td><code>run_backtest_engine</code></td>
+              <td>lookahead · 가중치 · 비용 invariant 6개</td>
+            </tr>
+            <tr>
+              <td>의사결정</td>
+              <td>코드 주석 · 1단계 플랜</td>
+              <td>버린 대안이 있는 ADR</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="incremental">1 · 증분 적재 설계</h2>
+        <p>
+          전역 <code>MAX(Date)</code>로 자르면 중단 후 일부 티커가 영구히
+          뒤처진다. Q-SEED는 청크 시작일을
+          <b>그 청크에서 가장 이른 티커별 last_date</b>에 맞춘 뒤, 끝나면
+          <code>(Ticker, Date)</code> 중복을 제거하고 자동 gap repair를 돌린다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>단계</th>
+              <th>Naive</th>
+              <th>Q-SEED</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>시작일</td>
+              <td>전역 <code>MAX(Date)</code></td>
+              <td><code>min(ticker last_date in chunk)</code></td>
+            </tr>
+            <tr>
+              <td>중단 후 재실행</td>
+              <td>이미 최신인 청크만 기준으로 뒤처진 티커를 놓침</td>
+              <td>낡은 티커가 청크 시작일을 끌어내림</td>
+            </tr>
+            <tr>
+              <td>비용</td>
+              <td>적음</td>
+              <td>같은 청크의 최신 티커를 조금 더 받은 뒤 dedup</td>
+            </tr>
+            <tr>
+              <td>마무리</td>
+              <td>없음</td>
+              <td>auto-repair → <code>--check-gaps</code> / <code>--repair-gaps</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>모드</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>명령</th>
+              <th>언제</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--build-db</code></td>
+              <td>테이블 초기화 후 전체 재적재</td>
+            </tr>
+            <tr>
+              <td><code>--update-db</code></td>
+              <td>티커별 last_date 증분 + 기본 자동 복구</td>
+            </tr>
+            <tr>
+              <td><code>--check-gaps</code></td>
+              <td>수집 없이 리포트만</td>
+            </tr>
+            <tr>
+              <td><code>--repair-gaps</code></td>
+              <td>뒤처진 티커만 재수집</td>
+            </tr>
+            <tr>
+              <td><code>--no-gap-repair</code></td>
+              <td>증분만, 자동 복구 끔</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>문서에 솔직히 적을 함정</h3>
+        <div class="cards" style="grid-template-columns: 1fr">
+          <div class="card">
+            <b><code>last_date.txt</code>는 진실 공급원이 아님</b>
+            <p>
+              파일은 전역 최신일이다. 증분 시작일의 진실은 DuckDB 티커별
+              <code>MAX(Date)</code>다.
+            </p>
+          </div>
+          <div class="card">
+            <b>중간 구멍은 증분이 못 고친다</b>
+            <p>
+              마지막 날짜가 최신이면 중간에 빠진 날은 다시 받지 않는다. 아래
+              interior hole로 연결한다.
+            </p>
+          </div>
+          <div class="card">
+            <b>수정주가 재작성 시 어느 행이 남는가</b>
+            <p>
+              <code>deduplicate_raw_stocks</code>는 <code>Unknown</code> Market만
+              뒤로 밀어 한 행을 남긴다. 최신 수집 행을 항상 이기게 하지는 않는다.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout ok">
+          <b>산출물.</b>
+          <code>docs/design/incremental-load.md</code> — 시퀀스 세 칸 + pytest
+          하나: A는 1/20, B는 1/10인 청크의 시작일이 <code>2024-01-10</code>인지
+          단언. 코드:
+          <code>src/pipelines/stock_pipeline.py</code>,
+          <a href="../data-pipeline.md">data-pipeline.md</a>.
+        </div>
+
+        <h2 id="gaps">2 · Gap detection</h2>
+        <p>
+          <code>detect_gaps</code>는 시장별 <code>MAX(Date)</code> 대비
+          <code>lag_days &gt; gap_tolerance_days</code>(기본 5)인 티커만 본다.
+          “공백 탐지가 있다”가 아니라 <b>공백을 다섯 종류로 나눈 뒤 어떤 것만
+          잡는지</b>가 깊이다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>공백 종류</th>
+              <th>예시</th>
+              <th>지금</th>
+              <th>대응</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="tone-success">
+              <td>Tail lag</td>
+              <td>청크 실패로 한 종목만 3주 전</td>
+              <td>탐지</td>
+              <td><code>--repair-gaps</code>, incremental 후 auto-repair</td>
+            </tr>
+            <tr class="tone-info">
+              <td>달력 왜곡</td>
+              <td>미국 7/4 vs 한국 7/6</td>
+              <td>회피</td>
+              <td>전역 max가 아니라 시장별 max + tolerance 5일</td>
+            </tr>
+            <tr class="tone-warn">
+              <td>휴장 과대계상</td>
+              <td>설날·추석을 weekday가 결측으로 봄</td>
+              <td>힌트만</td>
+              <td>dbt <code>missing_rate</code>는 거래소 캘린더가 아님</td>
+            </tr>
+            <tr class="tone-danger">
+              <td>Interior hole</td>
+              <td>중간 5일 비고 끝은 최신</td>
+              <td>미탐지</td>
+              <td>구현하지 말고 ADR에 알려진 한계로</td>
+            </tr>
+            <tr class="tone-warn">
+              <td>상폐 · 신규 · 정지</td>
+              <td>last_date가 멈춤</td>
+              <td>lagging으로 잡힘</td>
+              <td>repair가 비면 <code>no_data_list.txt</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="pair" style="margin-top: 16px">
+          <div class="card">
+            <span class="pill do">경계값 계약</span>
+            <p>
+              비교는 <code>&gt;</code>이다. lag 5일은 제외, 6일은 포함. 문서와
+              테스트를 같게 잠근다.
+            </p>
+          </div>
+          <div class="card">
+            <span class="pill do">KR / US fixture</span>
+            <p>
+              같은 전역 날짜라도 Market이 다르면 오탐하지 않는지. 전역 max를
+              쓰면 실패하는 케이스를 테스트로 남긴다.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout">
+          <b>구현하지 말 것.</b> 거래소 공휴일 캘린더 엔진. 깊이의 증명은 한계를
+          알고 있음이지 캘린더 SaaS가 아니다. 코드:
+          <code>src/repositories/gap_detector.py</code>, 대시보드
+          <code>3_Freshness_Gaps.py</code>.
+        </div>
+
+        <h2 id="dbt">3 · dbt 계보와 테스트</h2>
+        <p>
+          1단계는 “테스트가 깨지면 CI가 실패한다”였다. 2단계는 무엇이 무엇에
+          의존하고, 어떤 실패가 어떤 의미인지를 보여 준다. 무거운
+          <code>int_stocks__daily_returns</code> /
+          <code>fct_stocks__price_factors</code>는 점선 — CI 분 단위를 깨지
+          않으려고 기본 꺼 둔다.
+        </p>
+
+        <div class="dag" aria-label="dbt stocks lineage">
+          <svg
+            viewBox="0 0 860 280"
+            role="img"
+            aria-label="raw to staging to marts, heavy models disabled"
+          >
+            <defs>
+              <marker
+                id="arrow"
+                markerWidth="8"
+                markerHeight="8"
+                refX="7"
+                refY="3"
+                orient="auto"
+              >
+                <path d="M0,0 L8,3 L0,6 Z" fill="#a8a29e" />
+              </marker>
+            </defs>
+            <!-- edges -->
+            <g
+              stroke="#a8a29e"
+              stroke-width="1.2"
+              fill="none"
+              marker-end="url(#arrow)"
+            >
+              <path d="M148,48 H190" />
+              <path d="M148,200 H190" />
+              <path d="M338,48 H380" />
+              <path d="M338,48 C352,48 360,100 380,100" />
+              <path d="M338,48 C352,48 360,152 380,152" />
+              <path d="M338,200 H380" />
+              <path
+                d="M268,66 C268,248 560,248 570,248"
+                stroke-dasharray="4 3"
+              />
+              <path
+                d="M718,248 H760"
+                stroke-dasharray="4 3"
+              />
+            </g>
+            <!-- nodes -->
+            <g font-family="ui-monospace, SF Mono, Menlo, monospace" font-size="11">
+              <rect x="8" y="30" width="140" height="36" rx="6" fill="#fffdf9" stroke="#d6d3d1" />
+              <text x="78" y="52" text-anchor="middle" fill="#1c1917">raw_stocks</text>
+
+              <rect x="8" y="182" width="140" height="36" rx="6" fill="#fffdf9" stroke="#d6d3d1" />
+              <text x="78" y="204" text-anchor="middle" fill="#1c1917">raw_security_meta</text>
+
+              <rect x="198" y="30" width="140" height="36" rx="6" fill="#ccfbf1" stroke="#0f766e" />
+              <text x="268" y="52" text-anchor="middle" fill="#115e59">stg_stocks</text>
+
+              <rect x="198" y="182" width="140" height="36" rx="6" fill="#ccfbf1" stroke="#0f766e" />
+              <text x="268" y="204" text-anchor="middle" fill="#115e59">stg_meta</text>
+
+              <rect x="388" y="30" width="140" height="36" rx="6" fill="#fffdf9" stroke="#d6d3d1" />
+              <text x="458" y="52" text-anchor="middle" fill="#1c1917">dim_market</text>
+
+              <rect x="388" y="82" width="140" height="36" rx="6" fill="#fffdf9" stroke="#d6d3d1" />
+              <text x="458" y="104" text-anchor="middle" fill="#1c1917">rpt_overview</text>
+
+              <rect x="388" y="134" width="140" height="36" rx="6" fill="#fffdf9" stroke="#d6d3d1" />
+              <text x="458" y="156" text-anchor="middle" fill="#1c1917">rpt_freshness</text>
+
+              <rect x="388" y="186" width="140" height="36" rx="6" fill="#fffdf9" stroke="#d6d3d1" />
+              <text x="458" y="208" text-anchor="middle" fill="#1c1917">dim_security</text>
+
+              <rect x="578" y="230" width="140" height="36" rx="6" fill="#f5f5f4" stroke="#d6d3d1" stroke-dasharray="4 3" />
+              <text x="648" y="252" text-anchor="middle" fill="#78716c">int_returns (off)</text>
+
+              <rect x="768" y="230" width="84" height="36" rx="6" fill="#f5f5f4" stroke="#d6d3d1" stroke-dasharray="4 3" />
+              <text x="810" y="252" text-anchor="middle" fill="#78716c">fct (off)</text>
+            </g>
+          </svg>
+        </div>
+        <p class="caption">
+          Source: <code>dbt/models/stocks</code> · CI는
+          <code>stocks+market</code>만 build. int/fct는
+          <code>enabled: false</code>.
+        </p>
+
+        <h3>테스트 카탈로그</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>테스트</th>
+              <th>모델</th>
+              <th>실패 시 의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>unique Ticker+Date</td>
+              <td><code>stg_stocks__raw_stocks</code></td>
+              <td>증분 dedup 실패 또는 이중 적재</td>
+            </tr>
+            <tr>
+              <td>accepted_values country/currency</td>
+              <td><code>dim_stocks__market</code></td>
+              <td>시장 매핑 누락</td>
+            </tr>
+            <tr>
+              <td>sector_status enum</td>
+              <td><code>dim_stocks__security</code></td>
+              <td>enrichment 계약 위반</td>
+            </tr>
+            <tr>
+              <td>not_null Date/Ticker/Close</td>
+              <td>staging</td>
+              <td>원천 적재가 빈 키를 넣음</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout skip">
+          <b>로컬 증거.</b> <code>make dbt-ci</code> — 합성 DuckDB, 네트워크
+          없음, <code>data/stocks.db</code>를 덮지 않음. 선택:
+          <code>dbt ls --select +rpt_stocks__freshness+</code>. dbt Cloud / 공개
+          docs 사이트는 하지 않는다.
+        </div>
+
+        <h2 id="docker">4 · Docker 재현성</h2>
+        <p>
+          지금 Compose는 <code>sleep infinity</code>와 소스 bind-mount를 쓰는
+          <b>개발 셸</b>이다. “이미지 한 장으로 연구 결과가 비트 동일”이라고
+          쓰면 거짓이다.
+        </p>
+        <div class="pair">
+          <div class="card">
+            <span class="pill do">Dev</span>
+            <h3 style="margin-top: 10px"><code>make docker-up</code></h3>
+            <p>
+              호스트 코드를 그대로 탄다. 웹 8000 · Streamlit 8501.
+              <code>q-seed-data</code> 볼륨에 실제 warehouse가 산다.
+            </p>
+          </div>
+          <div class="card">
+            <span class="pill info">Reproduce</span>
+            <h3 style="margin-top: 10px">lockfile + pytest</h3>
+            <p>
+              bind-mount 없이 이미지 코드와 <code>uv.lock</code>으로
+              <code>pytest</code>와 <code>make dbt-ci</code>만. 네트워크 시세
+              없음.
+            </p>
+          </div>
+        </div>
+
+        <h3>재현되는 것 / 안 되는 것</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>재현됨</th>
+              <th>재현 안 됨</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>의존성 (<code>uv.lock</code>, <code>--frozen</code>)</td>
+              <td>yfinance 라이브 바 데이터</td>
+            </tr>
+            <tr>
+              <td>pytest 합성 백테스트</td>
+              <td>로컬 <code>data/stocks.db</code> (named volume)</td>
+            </tr>
+            <tr>
+              <td>dbt on <code>ci_stocks.db</code></td>
+              <td>대시보드가 보여주는 실제 웨어하우스</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout ok">
+          <b>증명 레시피.</b> 호스트 <code>make test</code>와 컨테이너
+          <code>uv run pytest</code>가 같은 테스트 수를 통과한 로그 두 줄이면
+          충분하다. 이미지에 DuckDB를 굽거나 프로덕션 오케스트레이션은 하지
+          않는다.
+        </div>
+
+        <h2 id="backtest">5 · 백테스트 정확성</h2>
+        <p>
+          정확성을 케이스 스터디 CAGR에 맞추는 일이 아니다. 알려진 편향이
+          코드에 없음을 작은 fixture로 증명한다. 엔진은 이미 리밸런싱일
+          <b>다음날부터</b> 수익을 반영하고
+          (<code>Date &gt; start_date</code>), 비용은 구간 첫날에
+          <code>turnover * bps / 10000</code>이다. 잠그는 테스트가 없다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>계약</th>
+              <th>단언</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Lookahead</td>
+              <td>
+                리밸런싱일 T 종가로 포지션, 수익은 T+1부터. 2종목×4일 손계산과
+                일치
+              </td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>가중치</td>
+              <td>long_short signed sum ≈ 0, long_only ≈ 1</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>비용</td>
+              <td>
+                턴오버 1.0 · 10bps면 리밸런싱 다음날 수익이 정확히 10bps 차감
+              </td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>결정성</td>
+              <td>같은 prices·factor 두 번 → 같은 CAGR/MDD</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>빈 유니버스</td>
+              <td>
+                <code>min_observations</code> 미달이면 빈 결과이지 예외 아님
+              </td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>분위 동점</td>
+              <td>
+                <code>rank(method="first")</code>라 같은 팩터값이어도 5분위로
+                나뉨
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <b>CI 골든으로 넣지 말 것.</b> 케이스 스터디 +7.63% 같은 실데이터
+          숫자는 빈티지 문제다. 1단계에서 “문서 숫자는 산출물에서 옮긴다”로
+          이미 닫혔다. 코드: <code>src/backtest/engine.py</code>,
+          <a href="../case-studies/2026-07-kr-backtest.md">KR 백테스트 케이스</a>.
+        </div>
+
+        <h2 id="adr">6 · 설계 의사결정 문서</h2>
+        <p>
+          <a href="../architecture.md">architecture.md</a>는 구조 설명이다.
+          여기서 필요한 건 Context → Decision → Consequences → Rejected
+          alternatives. <code>docs/adr/</code>에 페이지 반짜리 7개면 위
+          스트림과 1:1이다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>제목</th>
+              <th>핵심 한 줄</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>001</td>
+              <td>Warehouse SoT</td>
+              <td>분석·대시보드는 yfinance를 치지 않고 DuckDB를 읽는다</td>
+            </tr>
+            <tr>
+              <td>002</td>
+              <td>증분 시작일</td>
+              <td>전역 max가 아니라 청크 내 min last_date</td>
+            </tr>
+            <tr>
+              <td>003</td>
+              <td>Gap 기준</td>
+              <td>시장별 최신일 + 달력 5일. 거래소 캘린더는 아직 없음</td>
+            </tr>
+            <tr>
+              <td>004</td>
+              <td>dbt on DuckDB</td>
+              <td>로컬 엔진. BigQuery/Spark는 핵심 경로 아님</td>
+            </tr>
+            <tr>
+              <td>005</td>
+              <td>동일가중 기본</td>
+              <td>
+                최적화는 별 경로. equal_weight는
+                <code>opt_max_assets</code>를 안 탄다
+              </td>
+            </tr>
+            <tr>
+              <td>006</td>
+              <td>재현 범위</td>
+              <td>git SHA + DuckDB fingerprint. 시세 API 비트 재현 포기</td>
+            </tr>
+            <tr>
+              <td>007</td>
+              <td>Docker 역할</td>
+              <td>개발 셸. 재현 증명은 lockfile + pytest/dbt-ci</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="sequence">권장 순서</h2>
+        <p>
+          의존성이 한방향이다. ADR이 판단을 잠그고, 문서가 주장을 적고,
+          테스트가 그 주장을 잠근다.
+        </p>
+        <ul class="todo">
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>ADR 초안 7개</b> — 판단과 버린 대안부터 적기.
+              <code>docs/adr/</code></span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>증분 설계</b> —
+              <code>docs/design/incremental-load.md</code> + 청크 min-date
+              pytest</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>Gap</b> — 문제/한계 문서 + 경계값·시장별 fixture</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>백테스트 invariant 6개</b> — 엔진 계약의 코드 코어.
+              <code>tests/test_backtest_engine_invariants.py</code></span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>dbt 계보</b> —
+              <code>docs/design/dbt-lineage.md</code> +
+              <code>make dbt-ci</code> 로그 스냅샷</span
+            >
+          </li>
+          <li>
+            <input type="checkbox" disabled />
+            <span
+              ><b>Docker 두 모드</b> —
+              <code>docs/design/docker-reproducibility.md</code> + 컨테이너
+              pytest 로그</span
+            >
+          </li>
+        </ul>
+
+        <h2 id="wont">하지 않을 것</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>항목</th>
+              <th>이유</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>신규 팩터 · Hosted API</td>
+              <td>깊이의 증명이 아니라 범위 확장</td>
+            </tr>
+            <tr>
+              <td>거래소 공휴일 캘린더 엔진</td>
+              <td>한계를 아는 것이 이번 단계의 깊이</td>
+            </tr>
+            <tr>
+              <td>dbt docs 사이트 호스팅</td>
+              <td>1단계에서 이미 버린 선택</td>
+            </tr>
+            <tr>
+              <td>샘플 <code>stocks.db</code> git 커밋</td>
+              <td>용량·라이선스. CI는 합성 DB</td>
+            </tr>
+            <tr>
+              <td>yfinance 비트 단위 재현</td>
+              <td>약속할 수 없음. provenance만</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="done">완료 정의</h2>
+        <div class="cards" style="grid-template-columns: 1fr">
+          <div class="card">
+            <span class="pill do">경로</span>
+            <p>여섯 주제 각각에 파일 경로 + 명령 한 줄 + 테스트 이름이 있다.</p>
+          </div>
+          <div class="card">
+            <span class="pill warn">거절</span>
+            <p>
+              안 하는 이유가 ADR Rejected에 있다 (거래소 캘린더, dbt 호스팅,
+              시세 비트 재현).
+            </p>
+          </div>
+          <div class="card">
+            <span class="pill good">CI</span>
+            <p>
+              새 테스트와 기존 <code>dbt build</code>만 더 견고해지고, 라이브
+              yfinance는 안 탄다.
+            </p>
+          </div>
+        </div>
+
+        <footer>
+          파일 위치:
+          <code>docs/plans/2026-08-depth-phase.html</code>
+          · 브라우저로 연다 (GitHub는 HTML을 렌더하지 않음) · 이전
+          <a href="2026-08-trust-phase.html">1단계 · 신뢰</a>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
